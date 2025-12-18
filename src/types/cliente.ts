@@ -33,6 +33,18 @@ export interface ClienteCalculado extends Cliente {
   dias_em_atraso: number;
 }
 
+// Função auxiliar para obter o último dia do mês
+function getUltimoDiaDoMes(ano: number, mes: number): number {
+  // mes é 0-indexed (0 = janeiro), então passamos mes+1 e dia 0 para pegar o último dia do mês anterior
+  return new Date(ano, mes + 1, 0).getDate();
+}
+
+// Função para ajustar o dia de vencimento ao mês (ex: dia 31 em fevereiro -> 28/29)
+function ajustarDiaVencimento(ano: number, mes: number, diaVencimento: number): number {
+  const ultimoDia = getUltimoDiaDoMes(ano, mes);
+  return Math.min(diaVencimento, ultimoDia);
+}
+
 export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
   const valor_parcela = cliente.valor_total / cliente.total_parcelas;
   const parcelas_pendentes = cliente.total_parcelas - cliente.parcelas_pagas;
@@ -44,8 +56,11 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
   const mesAtual = hoje.getMonth();
   const anoAtual = hoje.getFullYear();
   
-  // Create the due date for current month
-  const dataVencimentoMesAtual = new Date(anoAtual, mesAtual, cliente.dia_vencimento);
+  // Ajustar dia de vencimento para o mês atual (ex: dia 31 em fevereiro -> 28/29)
+  const diaVencimentoAjustado = ajustarDiaVencimento(anoAtual, mesAtual, cliente.dia_vencimento);
+  
+  // Create the due date for current month with adjusted day
+  const dataVencimentoMesAtual = new Date(anoAtual, mesAtual, diaVencimentoAjustado);
   
   // Check if there's still pending installments
   let status: 'Em dia' | 'Atrasado' = 'Em dia';
