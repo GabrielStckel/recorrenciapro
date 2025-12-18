@@ -1,21 +1,41 @@
+import { useState, useMemo } from 'react';
 import { useClientes } from '@/hooks/useClientes';
 import { Layout } from '@/components/Layout';
 import { KPICard } from '@/components/KPICard';
 import { ForecastChart } from '@/components/ForecastChart';
 import { ClientesAtrasados } from '@/components/ClientesAtrasados';
-import { DollarSign, TrendingUp, AlertTriangle, Clock } from 'lucide-react';
-import { Loader2 } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertTriangle, Clock, Loader2, Filter } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export default function Dashboard() {
   const { clientes, isLoading } = useClientes();
+  const [selectedProduto, setSelectedProduto] = useState<string>('Todos');
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
-  const totalRecebido = clientes.reduce((acc, c) => acc + c.valor_pago, 0);
-  const totalAReceber = clientes.reduce((acc, c) => acc + c.valor_a_receber, 0);
-  const clientesAtrasados = clientes.filter((c) => c.status === 'Atrasado');
+  // Get unique products
+  const produtos = useMemo(() => {
+    const uniqueProdutos = [...new Set(clientes.map((c) => c.produto))].filter(Boolean).sort();
+    return ['Todos', ...uniqueProdutos];
+  }, [clientes]);
+
+  // Filter clients based on selected product
+  const clientesFiltrados = useMemo(() => {
+    if (selectedProduto === 'Todos') return clientes;
+    return clientes.filter((c) => c.produto === selectedProduto);
+  }, [clientes, selectedProduto]);
+
+  const totalRecebido = clientesFiltrados.reduce((acc, c) => acc + c.valor_pago, 0);
+  const totalAReceber = clientesFiltrados.reduce((acc, c) => acc + c.valor_a_receber, 0);
+  const clientesAtrasados = clientesFiltrados.filter((c) => c.status === 'Atrasado');
   const valorEmAtraso = clientesAtrasados.reduce((acc, c) => acc + c.valor_parcela, 0);
 
   if (isLoading) {
@@ -31,7 +51,31 @@ export default function Dashboard() {
   return (
     <Layout>
       <div className="space-y-6 animate-fade-in">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          
+          <div className="flex items-center gap-3">
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            <Select value={selectedProduto} onValueChange={setSelectedProduto}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filtrar por produto" />
+              </SelectTrigger>
+              <SelectContent>
+                {produtos.map((produto) => (
+                  <SelectItem key={produto} value={produto}>
+                    {produto}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {selectedProduto !== 'Todos' && (
+          <p className="text-sm text-muted-foreground">
+            Exibindo: <span className="font-medium text-foreground">{selectedProduto}</span>
+          </p>
+        )}
 
         {/* KPIs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -44,10 +88,10 @@ export default function Dashboard() {
         {/* Chart and Alerts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <ForecastChart clientes={clientes} />
+            <ForecastChart clientes={clientesFiltrados} />
           </div>
           <div>
-            <ClientesAtrasados clientes={clientes} />
+            <ClientesAtrasados clientes={clientesFiltrados} />
           </div>
         </div>
       </div>
