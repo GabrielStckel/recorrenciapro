@@ -94,12 +94,31 @@ export function useClientes() {
       
       const novasParcelas = Math.max(0, Math.min(cliente.total_parcelas, cliente.parcelas_pagas + incremento));
       
+      // Calcular nova data_ultimo_pagamento
+      let novaDataUltimoPagamento: string | null = cliente.data_ultimo_pagamento;
+      
+      if (incremento > 0) {
+        // +1 parcela: define data como hoje
+        novaDataUltimoPagamento = new Date().toISOString().split('T')[0];
+      } else if (incremento < 0 && cliente.parcelas_pagas > 0) {
+        // -1 parcela: retrocede 1 mês na data_ultimo_pagamento
+        if (cliente.data_ultimo_pagamento) {
+          const dataAtual = new Date(cliente.data_ultimo_pagamento);
+          dataAtual.setMonth(dataAtual.getMonth() - 1);
+          novaDataUltimoPagamento = dataAtual.toISOString().split('T')[0];
+        }
+        // Se novasParcelas volta a 0, limpar a data
+        if (novasParcelas === 0) {
+          novaDataUltimoPagamento = null;
+        }
+      }
+      
       // Update client
       const { error: updateError } = await supabase
         .from('clientes_parcelados')
         .update({
           parcelas_pagas: novasParcelas,
-          data_ultimo_pagamento: incremento > 0 ? new Date().toISOString().split('T')[0] : cliente.data_ultimo_pagamento,
+          data_ultimo_pagamento: novaDataUltimoPagamento,
         })
         .eq('id', clienteId);
       
