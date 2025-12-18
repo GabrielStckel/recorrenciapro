@@ -16,7 +16,7 @@ export default function Dashboard() {
   const totalRecebido = clientes.reduce((acc, c) => acc + c.valor_pago, 0);
   const totalAReceber = clientes.reduce((acc, c) => acc + c.valor_a_receber, 0);
   const clientesAtrasados = clientes.filter((c) => c.status === 'Atrasado');
-  const valorEmAtraso = clientesAtrasados.reduce((acc, c) => acc + c.valor_a_receber, 0);
+  const valorEmAtraso = clientesAtrasados.reduce((acc, c) => acc + c.valor_parcela, 0);
 
   if (isLoading) {
     return (
