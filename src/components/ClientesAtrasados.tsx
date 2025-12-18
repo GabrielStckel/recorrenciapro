@@ -51,7 +51,7 @@ export function ClientesAtrasados({ clientes }: ClientesAtrasadosProps) {
                   {cliente.dias_em_atraso} dias
                 </Badge>
                 <p className="text-sm font-medium text-destructive">
-                  {formatCurrency(cliente.valor_a_receber)}
+                  {formatCurrency(cliente.valor_parcela)}
                 </p>
               </div>
             </div>
