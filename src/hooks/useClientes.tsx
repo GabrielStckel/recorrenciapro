@@ -3,11 +3,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { Cliente, HistoricoPagamento, ClienteCalculado, calcularDadosCliente } from '@/types/cliente';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
+import { useRegistrarMovimento } from './useMovimentos';
 
 export function useClientes() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const registrarMovimento = useRegistrarMovimento();
 
   const { data: clientes = [], isLoading, error } = useQuery({
     queryKey: ['clientes'],
@@ -82,7 +84,7 @@ export function useClientes() {
   });
 
   const registrarPagamento = useMutation({
-    mutationFn: async ({ clienteId, incremento }: { clienteId: string; incremento: number }) => {
+    mutationFn: async ({ clienteId, incremento, observacao }: { clienteId: string; incremento: number; observacao?: string }) => {
       // Get current client data
       const { data: cliente, error: fetchError } = await supabase
         .from('clientes_parcelados')
@@ -92,6 +94,7 @@ export function useClientes() {
       
       if (fetchError) throw fetchError;
       
+      const parcelasAntes = cliente.parcelas_pagas;
       const novasParcelas = Math.max(0, Math.min(cliente.total_parcelas, cliente.parcelas_pagas + incremento));
       
       // Calcular nova data_ultimo_pagamento
@@ -123,6 +126,17 @@ export function useClientes() {
         .eq('id', clienteId);
       
       if (updateError) throw updateError;
+      
+      // Registrar movimento
+      const tipoMovimento = incremento > 0 ? 'INCREMENTO' : 'DECREMENTO';
+      await registrarMovimento.mutateAsync({
+        cliente_id: clienteId,
+        tipo: tipoMovimento,
+        delta_parcelas: incremento,
+        parcelas_antes: parcelasAntes,
+        parcelas_depois: novasParcelas,
+        observacao: observacao || null,
+      });
       
       // Add to payment history if incrementing
       if (incremento > 0) {
