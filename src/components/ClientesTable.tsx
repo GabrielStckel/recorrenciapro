@@ -6,18 +6,19 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Plus, Minus, History, Edit, Trash2, MoreHorizontal, Search } from 'lucide-react';
+import { Plus, Minus, History, Edit, Trash2, MoreHorizontal, Search, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ClientesTableProps {
   clientes: ClienteCalculado[];
   onEdit: (cliente: ClienteCalculado) => void;
   onHistory: (cliente: ClienteCalculado) => void;
+  onMovimentos: (cliente: ClienteCalculado) => void;
 }
 
 type FilterType = 'all' | 'em_dia' | 'atrasado';
 
-export function ClientesTable({ clientes, onEdit, onHistory }: ClientesTableProps) {
+export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: ClientesTableProps) {
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
   const { registrarPagamento, deleteCliente } = useClientes();
@@ -184,6 +185,10 @@ export function ClientesTable({ clientes, onEdit, onHistory }: ClientesTableProp
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => onMovimentos(cliente)}>
+                            <Clock className="w-4 h-4 mr-2" />
+                            Movimentos
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => onHistory(cliente)}>
                             <History className="w-4 h-4 mr-2" />
                             Ver Histórico

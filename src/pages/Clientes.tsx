@@ -4,6 +4,7 @@ import { Layout } from '@/components/Layout';
 import { ClientesTable } from '@/components/ClientesTable';
 import { ClienteModal } from '@/components/ClienteModal';
 import { HistoricoModal } from '@/components/HistoricoModal';
+import { MovimentosModal } from '@/components/MovimentosModal';
 import { Button } from '@/components/ui/button';
 import { Plus, Loader2 } from 'lucide-react';
 import { ClienteCalculado } from '@/types/cliente';
@@ -12,6 +13,7 @@ export default function Clientes() {
   const { clientes, isLoading } = useClientes();
   const [modalOpen, setModalOpen] = useState(false);
   const [historicoOpen, setHistoricoOpen] = useState(false);
+  const [movimentosOpen, setMovimentosOpen] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState<ClienteCalculado | null>(null);
 
   const handleEdit = (cliente: ClienteCalculado) => {
@@ -22,6 +24,11 @@ export default function Clientes() {
   const handleHistory = (cliente: ClienteCalculado) => {
     setSelectedCliente(cliente);
     setHistoricoOpen(true);
+  };
+
+  const handleMovimentos = (cliente: ClienteCalculado) => {
+    setSelectedCliente(cliente);
+    setMovimentosOpen(true);
   };
 
   if (isLoading) {
@@ -35,9 +42,10 @@ export default function Clientes() {
           <h1 className="text-2xl font-bold">Clientes</h1>
           <Button onClick={() => { setSelectedCliente(null); setModalOpen(true); }}><Plus className="w-4 h-4 mr-2" />Novo Cliente</Button>
         </div>
-        <ClientesTable clientes={clientes} onEdit={handleEdit} onHistory={handleHistory} />
+        <ClientesTable clientes={clientes} onEdit={handleEdit} onHistory={handleHistory} onMovimentos={handleMovimentos} />
         <ClienteModal open={modalOpen} onClose={() => setModalOpen(false)} cliente={selectedCliente} />
         <HistoricoModal open={historicoOpen} onClose={() => setHistoricoOpen(false)} cliente={selectedCliente} />
+        <MovimentosModal open={movimentosOpen} onOpenChange={setMovimentosOpen} cliente={selectedCliente} />
       </div>
     </Layout>
   );

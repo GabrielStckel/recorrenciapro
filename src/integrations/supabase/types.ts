@@ -100,6 +100,50 @@ export type Database = {
           },
         ]
       }
+      movimentos_parcelas: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          data_evento: string
+          delta_parcelas: number
+          id: string
+          observacao: string | null
+          parcelas_antes: number
+          parcelas_depois: number
+          tipo: string
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          data_evento?: string
+          delta_parcelas: number
+          id?: string
+          observacao?: string | null
+          parcelas_antes: number
+          parcelas_depois: number
+          tipo: string
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          data_evento?: string
+          delta_parcelas?: number
+          id?: string
+          observacao?: string | null
+          parcelas_antes?: number
+          parcelas_depois?: number
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimentos_parcelas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes_parcelados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
