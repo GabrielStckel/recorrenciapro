@@ -122,6 +122,8 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
         data_inicio: formData.data_inicio,
         data_ultimo_pagamento: null,
         status_cliente: formData.status_cliente,
+        em_revisao: false,
+        mes_referencia_revisao: null,
       };
 
       const result = clienteSchema.safeParse(data);

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ClienteCalculado, StatusCliente } from '@/types/cliente';
+import { ClienteCalculado, StatusCliente, StatusPagamento } from '@/types/cliente';
 import { useClientes } from '@/hooks/useClientes';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,8 +23,14 @@ interface ClientesTableProps {
   onMovimentos: (cliente: ClienteCalculado) => void;
 }
 
-type FilterType = 'all' | 'em_dia' | 'atrasado';
+type FilterType = 'all' | 'em_dia' | 'em_revisao' | 'atrasado';
 type StatusFilterType = 'all' | StatusCliente;
+
+const statusPagamentoConfig: Record<StatusPagamento, { label: string; color: string }> = {
+  'Em dia': { label: 'Em dia', color: 'bg-success/20 text-success hover:bg-success/30' },
+  'Em revisão': { label: 'Em revisão', color: 'bg-warning/20 text-warning hover:bg-warning/30' },
+  'Atrasado': { label: 'Atrasado', color: 'bg-destructive/20 text-destructive hover:bg-destructive/30' },
+};
 
 const statusConfig: Record<StatusCliente, { label: string; color: string; icon: typeof UserCheck }> = {
   ATIVO: { label: 'Ativo', color: 'bg-success/20 text-success border-success/30', icon: UserCheck },
@@ -43,6 +49,7 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
     const matchesFilter =
       filter === 'all' ||
       (filter === 'em_dia' && cliente.status === 'Em dia') ||
+      (filter === 'em_revisao' && cliente.status === 'Em revisão') ||
       (filter === 'atrasado' && cliente.status === 'Atrasado');
 
     const matchesStatusFilter =
@@ -109,6 +116,14 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
             className={filter === 'em_dia' ? 'bg-success hover:bg-success/90' : ''}
           >
             Em dia ({clientes.filter((c) => c.status === 'Em dia').length})
+          </Button>
+          <Button
+            variant={filter === 'em_revisao' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFilter('em_revisao')}
+            className={filter === 'em_revisao' ? 'bg-warning hover:bg-warning/90' : ''}
+          >
+            Em revisão ({clientes.filter((c) => c.status === 'Em revisão').length})
           </Button>
           <Button
             variant={filter === 'atrasado' ? 'default' : 'outline'}
@@ -235,15 +250,18 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
                       {formatCurrency(cliente.valor_a_receber)}
                     </TableCell>
                     <TableCell className="text-center">
-                      <Badge
-                        variant={cliente.status === 'Em dia' ? 'default' : 'destructive'}
-                        className={cn(
-                          cliente.status === 'Em dia' && 'bg-success/20 text-success hover:bg-success/30'
-                        )}
-                      >
-                        {cliente.status}
-                        {cliente.dias_em_atraso > 0 && ` (${cliente.dias_em_atraso}d)`}
-                      </Badge>
+                      {(() => {
+                        const statusPagamento = statusPagamentoConfig[cliente.status];
+                        return (
+                          <Badge
+                            variant="outline"
+                            className={cn('border', statusPagamento.color)}
+                          >
+                            {cliente.status}
+                            {cliente.dias_em_atraso > 0 && cliente.status !== 'Em dia' && ` (${cliente.dias_em_atraso}d)`}
+                          </Badge>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell className="text-center">
                       <Select

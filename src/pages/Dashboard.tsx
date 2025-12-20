@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useClientes } from '@/hooks/useClientes';
 import { Layout } from '@/components/Layout';
 import { KPICard } from '@/components/KPICard';
 import { ForecastChart } from '@/components/ForecastChart';
 import { ClientesAtrasados } from '@/components/ClientesAtrasados';
-import { DollarSign, TrendingUp, AlertTriangle, Clock, Loader2, Filter } from 'lucide-react';
+import { PagamentosEmRevisao } from '@/components/PagamentosEmRevisao';
+import { DollarSign, TrendingUp, AlertTriangle, Clock, Loader2, Filter, Eye } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -14,7 +15,7 @@ import {
 } from '@/components/ui/select';
 
 export default function Dashboard() {
-  const { clientes, isLoading } = useClientes();
+  const { clientes, isLoading, entrarEmRevisao } = useClientes();
   const [selectedProduto, setSelectedProduto] = useState<string>('Todos');
 
   const formatCurrency = (value: number) => {
@@ -33,9 +34,41 @@ export default function Dashboard() {
     return clientes.filter((c) => c.produto === selectedProduto);
   }, [clientes, selectedProduto]);
 
+  // Auto-enter review state for clients that need it
+  useEffect(() => {
+    const hoje = new Date();
+    const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+    
+    clientes.forEach((cliente) => {
+      // Only ATIVO clients with pending parcels
+      if (cliente.status_cliente !== 'ATIVO' || cliente.parcelas_pendentes === 0) return;
+      
+      // Skip if already in review for current month
+      if (cliente.em_revisao && cliente.mes_referencia_revisao === mesAtual) return;
+      
+      // Check if due date has passed
+      if (hoje >= cliente.data_vencimento_mes_atual) {
+        // Check if payment was made this month
+        const ultimoPagamento = cliente.data_ultimo_pagamento 
+          ? new Date(cliente.data_ultimo_pagamento) 
+          : null;
+        
+        const pagouNesteMes = ultimoPagamento 
+          ? ultimoPagamento.getMonth() === hoje.getMonth() && ultimoPagamento.getFullYear() === hoje.getFullYear()
+          : false;
+        
+        // If not paid this month and not already in review, enter review
+        if (!pagouNesteMes && !cliente.em_revisao) {
+          entrarEmRevisao.mutate({ clienteId: cliente.id, mesReferencia: mesAtual });
+        }
+      }
+    });
+  }, [clientes, entrarEmRevisao]);
+
   const totalRecebido = clientesFiltrados.reduce((acc, c) => acc + c.valor_pago, 0);
   const totalAReceber = clientesFiltrados.reduce((acc, c) => acc + c.valor_a_receber, 0);
   const clientesAtrasados = clientesFiltrados.filter((c) => c.status === 'Atrasado');
+  const clientesEmRevisao = clientesFiltrados.filter((c) => c.em_revisao && c.status_cliente === 'ATIVO');
   const valorEmAtraso = clientesAtrasados.reduce((acc, c) => acc + c.valor_parcela, 0);
 
   if (isLoading) {
@@ -78,12 +111,18 @@ export default function Dashboard() {
         )}
 
         {/* KPIs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <KPICard title="Total Recebido" value={formatCurrency(totalRecebido)} icon={DollarSign} variant="success" />
           <KPICard title="Total a Receber" value={formatCurrency(totalAReceber)} icon={TrendingUp} />
+          <KPICard title="Em Revisão" value={clientesEmRevisao.length.toString()} icon={Eye} variant={clientesEmRevisao.length > 0 ? 'warning' : 'default'} />
           <KPICard title="Clientes Atrasados" value={clientesAtrasados.length.toString()} icon={AlertTriangle} variant={clientesAtrasados.length > 0 ? 'destructive' : 'default'} />
           <KPICard title="Valor em Atraso" value={formatCurrency(valorEmAtraso)} icon={Clock} variant={valorEmAtraso > 0 ? 'warning' : 'default'} />
         </div>
+
+        {/* Review Section */}
+        {clientesEmRevisao.length > 0 && (
+          <PagamentosEmRevisao clientes={clientesFiltrados} />
+        )}
 
         {/* Chart and Alerts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
