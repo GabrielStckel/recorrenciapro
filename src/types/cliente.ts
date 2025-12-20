@@ -1,5 +1,7 @@
 export type StatusCliente = 'ATIVO' | 'PAUSADO' | 'CANCELADO' | 'QUITADO';
 
+export type StatusPagamento = 'Em dia' | 'Em revisão' | 'Atrasado';
+
 export interface Cliente {
   id: string;
   user_id: string;
@@ -13,6 +15,8 @@ export interface Cliente {
   data_ultimo_pagamento: string | null;
   dia_vencimento: number;
   status_cliente: StatusCliente;
+  em_revisao: boolean;
+  mes_referencia_revisao: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -32,8 +36,9 @@ export interface ClienteCalculado extends Cliente {
   parcelas_pendentes: number;
   valor_pago: number;
   valor_a_receber: number;
-  status: 'Em dia' | 'Atrasado';
+  status: StatusPagamento;
   dias_em_atraso: number;
+  data_vencimento_mes_atual: Date;
 }
 
 // Função auxiliar para obter o último dia do mês
@@ -66,10 +71,11 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
   const dataVencimentoMesAtual = new Date(anoAtual, mesAtual, diaVencimentoAjustado);
   
   // Check if there's still pending installments
-  let status: 'Em dia' | 'Atrasado' = 'Em dia';
+  let status: StatusPagamento = 'Em dia';
   let dias_em_atraso = 0;
   
-  if (parcelas_pendentes > 0) {
+  // Only calculate for ATIVO clients with pending parcels
+  if (parcelas_pendentes > 0 && cliente.status_cliente === 'ATIVO') {
     // Check if payment was made this month
     const ultimoPagamento = cliente.data_ultimo_pagamento 
       ? new Date(cliente.data_ultimo_pagamento) 
@@ -79,8 +85,15 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
       ? ultimoPagamento.getMonth() === mesAtual && ultimoPagamento.getFullYear() === anoAtual
       : false;
     
-    // If today is past due date and no payment this month
-    if (hoje > dataVencimentoMesAtual && !pagouNesteMes) {
+    // Priority: em_revisao = true => "Em revisão"
+    if (cliente.em_revisao) {
+      status = 'Em revisão';
+      // Still calculate days for reference
+      if (hoje > dataVencimentoMesAtual) {
+        dias_em_atraso = Math.floor((hoje.getTime() - dataVencimentoMesAtual.getTime()) / (1000 * 60 * 60 * 24));
+      }
+    } else if (hoje > dataVencimentoMesAtual && !pagouNesteMes) {
+      // If today is past due date and no payment this month => Atrasado
       status = 'Atrasado';
       dias_em_atraso = Math.floor((hoje.getTime() - dataVencimentoMesAtual.getTime()) / (1000 * 60 * 60 * 24));
     }
@@ -94,5 +107,6 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
     valor_a_receber,
     status,
     dias_em_atraso,
+    data_vencimento_mes_atual: dataVencimentoMesAtual,
   };
 }

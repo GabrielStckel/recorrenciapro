@@ -21,7 +21,9 @@ export type Database = {
           data_inicio: string
           data_ultimo_pagamento: string | null
           dia_vencimento: number
+          em_revisao: boolean
           id: string
+          mes_referencia_revisao: string | null
           parcelas_pagas: number
           produto: string
           status_cliente: string
@@ -37,7 +39,9 @@ export type Database = {
           data_inicio?: string
           data_ultimo_pagamento?: string | null
           dia_vencimento: number
+          em_revisao?: boolean
           id?: string
+          mes_referencia_revisao?: string | null
           parcelas_pagas?: number
           produto: string
           status_cliente?: string
@@ -53,7 +57,9 @@ export type Database = {
           data_inicio?: string
           data_ultimo_pagamento?: string | null
           dia_vencimento?: number
+          em_revisao?: boolean
           id?: string
+          mes_referencia_revisao?: string | null
           parcelas_pagas?: number
           produto?: string
           status_cliente?: string

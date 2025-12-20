@@ -168,6 +168,114 @@ export function useClientes() {
     },
   });
 
+  // Mutation to confirm payment from review
+  const confirmarPagamentoRevisao = useMutation({
+    mutationFn: async ({ clienteId, observacao }: { clienteId: string; observacao?: string }) => {
+      // Get current client data
+      const { data: cliente, error: fetchError } = await supabase
+        .from('clientes_parcelados')
+        .select('*')
+        .eq('id', clienteId)
+        .single();
+      
+      if (fetchError) throw fetchError;
+      
+      const parcelasAntes = cliente.parcelas_pagas;
+      const novasParcelas = Math.min(cliente.total_parcelas, cliente.parcelas_pagas + 1);
+      const novaDataUltimoPagamento = new Date().toISOString().split('T')[0];
+      
+      // Update client: increment parcela, clear review state
+      const { error: updateError } = await supabase
+        .from('clientes_parcelados')
+        .update({
+          parcelas_pagas: novasParcelas,
+          data_ultimo_pagamento: novaDataUltimoPagamento,
+          em_revisao: false,
+          mes_referencia_revisao: null,
+        })
+        .eq('id', clienteId);
+      
+      if (updateError) throw updateError;
+      
+      // Registrar movimento
+      await registrarMovimento.mutateAsync({
+        cliente_id: clienteId,
+        tipo: 'INCREMENTO',
+        delta_parcelas: 1,
+        parcelas_antes: parcelasAntes,
+        parcelas_depois: novasParcelas,
+        observacao: observacao || 'Pagamento confirmado via revisão',
+      });
+      
+      // Add to payment history
+      const valorParcela = cliente.valor_total / cliente.total_parcelas;
+      const { error: histError } = await supabase
+        .from('historico_pagamentos')
+        .insert({
+          cliente_id: clienteId,
+          valor_pago: valorParcela,
+          numero_parcela: novasParcelas,
+          registrado_por: user?.email,
+        });
+      
+      if (histError) throw histError;
+      
+      return { novasParcelas };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clientes'] });
+      queryClient.invalidateQueries({ queryKey: ['historico'] });
+      toast({ title: 'Pagamento confirmado!', description: 'Parcela marcada como paga.' });
+    },
+    onError: (error) => {
+      toast({ title: 'Erro ao confirmar pagamento', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  // Mutation to mark as not paid (late)
+  const marcarComoAtrasado = useMutation({
+    mutationFn: async ({ clienteId }: { clienteId: string }) => {
+      // Just clear the review state - status will be calculated as Atrasado automatically
+      const { error: updateError } = await supabase
+        .from('clientes_parcelados')
+        .update({
+          em_revisao: false,
+          mes_referencia_revisao: null,
+        })
+        .eq('id', clienteId);
+      
+      if (updateError) throw updateError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clientes'] });
+      toast({ title: 'Cliente marcado como atrasado', variant: 'destructive' });
+    },
+    onError: (error) => {
+      toast({ title: 'Erro ao atualizar status', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  // Mutation to enter review state
+  const entrarEmRevisao = useMutation({
+    mutationFn: async ({ clienteId, mesReferencia }: { clienteId: string; mesReferencia: string }) => {
+      const { error } = await supabase
+        .from('clientes_parcelados')
+        .update({
+          em_revisao: true,
+          mes_referencia_revisao: mesReferencia,
+        })
+        .eq('id', clienteId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clientes'] });
+    },
+    onError: (error) => {
+      toast({ title: 'Erro ao atualizar revisão', description: error.message, variant: 'destructive' });
+    },
+  });
+
   return {
     clientes,
     isLoading,
@@ -176,6 +284,9 @@ export function useClientes() {
     updateCliente,
     deleteCliente,
     registrarPagamento,
+    confirmarPagamentoRevisao,
+    marcarComoAtrasado,
+    entrarEmRevisao,
   };
 }
 
