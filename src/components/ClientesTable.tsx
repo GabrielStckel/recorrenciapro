@@ -4,6 +4,7 @@ import { useClientes } from '@/hooks/useClientes';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import {
@@ -13,7 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Minus, History, Edit, Trash2, MoreHorizontal, Search, Clock, UserCheck, UserX, Pause, CheckCircle } from 'lucide-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Plus, Minus, History, Edit, Trash2, MoreHorizontal, Search, Clock, UserCheck, UserX, Pause, CheckCircle, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ClientesTableProps {
@@ -23,8 +29,18 @@ interface ClientesTableProps {
   onMovimentos: (cliente: ClienteCalculado) => void;
 }
 
-type FilterType = 'all' | 'em_dia' | 'em_revisao' | 'atrasado';
-type StatusFilterType = 'all' | StatusCliente;
+type StatusFilterOption = 'all' | 'em_dia' | 'em_revisao' | 'atrasado' | 'ATIVO' | 'PAUSADO' | 'CANCELADO' | 'QUITADO';
+
+const statusFilterOptions: { value: StatusFilterOption; label: string; color?: string }[] = [
+  { value: 'all', label: 'Todos' },
+  { value: 'em_dia', label: 'Em dia', color: 'text-success' },
+  { value: 'em_revisao', label: 'Em revisão', color: 'text-warning' },
+  { value: 'atrasado', label: 'Atrasado', color: 'text-destructive' },
+  { value: 'ATIVO', label: 'Ativo', color: 'text-success' },
+  { value: 'PAUSADO', label: 'Pausado', color: 'text-warning' },
+  { value: 'CANCELADO', label: 'Cancelado', color: 'text-muted-foreground' },
+  { value: 'QUITADO', label: 'Quitado', color: 'text-info' },
+];
 
 const statusPagamentoConfig: Record<StatusPagamento, { label: string; color: string }> = {
   'Em dia': { label: 'Em dia', color: 'bg-success/20 text-success hover:bg-success/30' },
@@ -40,20 +56,47 @@ const statusConfig: Record<StatusCliente, { label: string; color: string; icon: 
 };
 
 export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: ClientesTableProps) {
-  const [filter, setFilter] = useState<FilterType>('all');
-  const [statusFilter, setStatusFilter] = useState<StatusFilterType>('all');
+  const [selectedFilters, setSelectedFilters] = useState<StatusFilterOption[]>([]);
   const [search, setSearch] = useState('');
   const { registrarPagamento, deleteCliente, updateCliente } = useClientes();
 
-  const filteredClientes = clientes.filter((cliente) => {
-    const matchesFilter =
-      filter === 'all' ||
-      (filter === 'em_dia' && cliente.status === 'Em dia') ||
-      (filter === 'em_revisao' && cliente.status === 'Em revisão') ||
-      (filter === 'atrasado' && cliente.status === 'Atrasado');
+  const handleFilterChange = (value: StatusFilterOption, checked: boolean) => {
+    if (value === 'all') {
+      setSelectedFilters([]);
+      return;
+    }
+    
+    if (checked) {
+      setSelectedFilters((prev) => prev.filter((f) => f !== 'all').concat(value));
+    } else {
+      setSelectedFilters((prev) => prev.filter((f) => f !== value));
+    }
+  };
 
-    const matchesStatusFilter =
-      statusFilter === 'all' || cliente.status_cliente === statusFilter;
+  const isAllSelected = selectedFilters.length === 0;
+
+  const filteredClientes = clientes.filter((cliente) => {
+    if (isAllSelected) {
+      const searchLower = search.toLowerCase();
+      return (
+        !search ||
+        cliente.cliente_nome.toLowerCase().includes(searchLower) ||
+        (cliente.whatsapp && cliente.whatsapp.includes(search))
+      );
+    }
+
+    const matchesPaymentStatus = 
+      selectedFilters.includes('em_dia') && cliente.status === 'Em dia' ||
+      selectedFilters.includes('em_revisao') && cliente.status === 'Em revisão' ||
+      selectedFilters.includes('atrasado') && cliente.status === 'Atrasado';
+
+    const matchesClientStatus =
+      selectedFilters.includes('ATIVO') && cliente.status_cliente === 'ATIVO' ||
+      selectedFilters.includes('PAUSADO') && cliente.status_cliente === 'PAUSADO' ||
+      selectedFilters.includes('CANCELADO') && cliente.status_cliente === 'CANCELADO' ||
+      selectedFilters.includes('QUITADO') && cliente.status_cliente === 'QUITADO';
+
+    const matchesFilter = matchesPaymentStatus || matchesClientStatus;
 
     const searchLower = search.toLowerCase();
     const matchesSearch =
@@ -61,8 +104,18 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
       cliente.cliente_nome.toLowerCase().includes(searchLower) ||
       (cliente.whatsapp && cliente.whatsapp.includes(search));
 
-    return matchesFilter && matchesStatusFilter && matchesSearch;
+    return matchesFilter && matchesSearch;
   });
+
+  const getFilterLabel = () => {
+    if (isAllSelected) return 'Todos os status';
+    const labels = selectedFilters.map((f) => 
+      statusFilterOptions.find((opt) => opt.value === f)?.label || f
+    );
+    if (labels.length === 1) return labels[0];
+    if (labels.length === 2) return labels.join(', ');
+    return `${labels.length} selecionados`;
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -85,112 +138,58 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
     updateCliente.mutate({ id: clienteId, status_cliente: newStatus });
   };
 
-  const getStatusCounts = () => {
-    return {
-      ATIVO: clientes.filter((c) => c.status_cliente === 'ATIVO').length,
-      PAUSADO: clientes.filter((c) => c.status_cliente === 'PAUSADO').length,
-      CANCELADO: clientes.filter((c) => c.status_cliente === 'CANCELADO').length,
-      QUITADO: clientes.filter((c) => c.status_cliente === 'QUITADO').length,
-    };
-  };
-
-  const statusCounts = getStatusCounts();
-
   return (
     <div className="space-y-4">
       {/* Filters and Search */}
-      <div className="flex flex-col gap-4">
-        {/* Status Payment Filters */}
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={filter === 'all' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilter('all')}
-          >
-            Todos ({clientes.length})
-          </Button>
-          <Button
-            variant={filter === 'em_dia' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilter('em_dia')}
-            className={filter === 'em_dia' ? 'bg-success hover:bg-success/90' : ''}
-          >
-            Em dia ({clientes.filter((c) => c.status === 'Em dia').length})
-          </Button>
-          <Button
-            variant={filter === 'em_revisao' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilter('em_revisao')}
-            className={filter === 'em_revisao' ? 'bg-warning hover:bg-warning/90' : ''}
-          >
-            Em revisão ({clientes.filter((c) => c.status === 'Em revisão').length})
-          </Button>
-          <Button
-            variant={filter === 'atrasado' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilter('atrasado')}
-            className={filter === 'atrasado' ? 'bg-destructive hover:bg-destructive/90' : ''}
-          >
-            Atrasados ({clientes.filter((c) => c.status === 'Atrasado').length})
-          </Button>
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+        {/* Status Multi-Select Dropdown */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="min-w-[180px] justify-between">
+              <span className="truncate">Status: {getFilterLabel()}</span>
+              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[220px] p-2 bg-popover" align="start">
+            <div className="space-y-1">
+              {statusFilterOptions.map((option) => (
+                <div
+                  key={option.value}
+                  className="flex items-center space-x-2 rounded-md px-2 py-1.5 hover:bg-accent cursor-pointer"
+                  onClick={() => handleFilterChange(option.value, !selectedFilters.includes(option.value))}
+                >
+                  <Checkbox
+                    id={option.value}
+                    checked={option.value === 'all' ? isAllSelected : selectedFilters.includes(option.value)}
+                    onCheckedChange={(checked) => handleFilterChange(option.value, !!checked)}
+                  />
+                  <label
+                    htmlFor={option.value}
+                    className={cn('text-sm cursor-pointer flex-1', option.color)}
+                  >
+                    {option.label}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Search */}
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome ou WhatsApp..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10"
+          />
         </div>
 
-        {/* Status Client Filters + Search */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant={statusFilter === 'all' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setStatusFilter('all')}
-            >
-              Todos Status
-            </Button>
-            <Button
-              variant={statusFilter === 'ATIVO' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setStatusFilter('ATIVO')}
-              className={statusFilter === 'ATIVO' ? 'bg-success/20 text-success' : ''}
-            >
-              <UserCheck className="w-3 h-3 mr-1" />
-              Ativos ({statusCounts.ATIVO})
-            </Button>
-            <Button
-              variant={statusFilter === 'PAUSADO' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setStatusFilter('PAUSADO')}
-              className={statusFilter === 'PAUSADO' ? 'bg-warning/20 text-warning' : ''}
-            >
-              <Pause className="w-3 h-3 mr-1" />
-              Pausados ({statusCounts.PAUSADO})
-            </Button>
-            <Button
-              variant={statusFilter === 'CANCELADO' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setStatusFilter('CANCELADO')}
-            >
-              <UserX className="w-3 h-3 mr-1" />
-              Cancelados ({statusCounts.CANCELADO})
-            </Button>
-            <Button
-              variant={statusFilter === 'QUITADO' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setStatusFilter('QUITADO')}
-              className={statusFilter === 'QUITADO' ? 'bg-info/20 text-info' : ''}
-            >
-              <CheckCircle className="w-3 h-3 mr-1" />
-              Quitados ({statusCounts.QUITADO})
-            </Button>
-          </div>
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nome ou WhatsApp..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </div>
+        {/* Results Count */}
+        <span className="text-sm text-muted-foreground whitespace-nowrap">
+          {filteredClientes.length} de {clientes.length} clientes
+        </span>
       </div>
 
       {/* Table */}
