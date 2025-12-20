@@ -4,7 +4,6 @@ import { useClientes } from '@/hooks/useClientes';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import {
@@ -29,17 +28,22 @@ interface ClientesTableProps {
   onMovimentos: (cliente: ClienteCalculado) => void;
 }
 
-type StatusFilterOption = 'all' | 'em_dia' | 'em_revisao' | 'atrasado' | 'ATIVO' | 'PAUSADO' | 'CANCELADO' | 'QUITADO';
+type StatusPagamentoFilter = 'todos' | 'em_dia' | 'em_revisao' | 'atrasado';
+type StatusClienteFilter = 'todos' | 'ativo' | 'pausado' | 'cancelado' | 'quitado';
 
-const statusFilterOptions: { value: StatusFilterOption; label: string; color?: string }[] = [
-  { value: 'all', label: 'Todos' },
+const statusPagamentoFilterOptions: { value: StatusPagamentoFilter; label: string; color?: string }[] = [
+  { value: 'todos', label: 'Todos' },
   { value: 'em_dia', label: 'Em dia', color: 'text-success' },
   { value: 'em_revisao', label: 'Em revisão', color: 'text-warning' },
   { value: 'atrasado', label: 'Atrasado', color: 'text-destructive' },
-  { value: 'ATIVO', label: 'Ativo', color: 'text-success' },
-  { value: 'PAUSADO', label: 'Pausado', color: 'text-warning' },
-  { value: 'CANCELADO', label: 'Cancelado', color: 'text-muted-foreground' },
-  { value: 'QUITADO', label: 'Quitado', color: 'text-info' },
+];
+
+const statusClienteFilterOptions: { value: StatusClienteFilter; label: string; color?: string }[] = [
+  { value: 'todos', label: 'Todos' },
+  { value: 'ativo', label: 'Ativo', color: 'text-success' },
+  { value: 'pausado', label: 'Pausado', color: 'text-warning' },
+  { value: 'cancelado', label: 'Cancelado', color: 'text-muted-foreground' },
+  { value: 'quitado', label: 'Quitado', color: 'text-info' },
 ];
 
 const statusPagamentoConfig: Record<StatusPagamento, { label: string; color: string }> = {
@@ -56,65 +60,57 @@ const statusConfig: Record<StatusCliente, { label: string; color: string; icon: 
 };
 
 export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: ClientesTableProps) {
-  const [selectedFilters, setSelectedFilters] = useState<StatusFilterOption[]>([]);
+  const [statusPagamentoFilter, setStatusPagamentoFilter] = useState<StatusPagamentoFilter>('todos');
+  const [statusClienteFilter, setStatusClienteFilter] = useState<StatusClienteFilter>('todos');
+  const [pagamentoPopoverOpen, setPagamentoPopoverOpen] = useState(false);
+  const [clientePopoverOpen, setClientePopoverOpen] = useState(false);
   const [search, setSearch] = useState('');
   const { registrarPagamento, deleteCliente, updateCliente } = useClientes();
 
-  const handleFilterChange = (value: StatusFilterOption, checked: boolean) => {
-    if (value === 'all') {
-      setSelectedFilters([]);
-      return;
-    }
-    
-    if (checked) {
-      setSelectedFilters((prev) => prev.filter((f) => f !== 'all').concat(value));
-    } else {
-      setSelectedFilters((prev) => prev.filter((f) => f !== value));
-    }
-  };
-
-  const isAllSelected = selectedFilters.length === 0;
-
   const filteredClientes = clientes.filter((cliente) => {
-    if (isAllSelected) {
-      const searchLower = search.toLowerCase();
-      return (
-        !search ||
-        cliente.cliente_nome.toLowerCase().includes(searchLower) ||
-        (cliente.whatsapp && cliente.whatsapp.includes(search))
-      );
-    }
-
-    const matchesPaymentStatus = 
-      selectedFilters.includes('em_dia') && cliente.status === 'Em dia' ||
-      selectedFilters.includes('em_revisao') && cliente.status === 'Em revisão' ||
-      selectedFilters.includes('atrasado') && cliente.status === 'Atrasado';
-
-    const matchesClientStatus =
-      selectedFilters.includes('ATIVO') && cliente.status_cliente === 'ATIVO' ||
-      selectedFilters.includes('PAUSADO') && cliente.status_cliente === 'PAUSADO' ||
-      selectedFilters.includes('CANCELADO') && cliente.status_cliente === 'CANCELADO' ||
-      selectedFilters.includes('QUITADO') && cliente.status_cliente === 'QUITADO';
-
-    const matchesFilter = matchesPaymentStatus || matchesClientStatus;
-
+    // Filtro de busca
     const searchLower = search.toLowerCase();
     const matchesSearch =
       !search ||
       cliente.cliente_nome.toLowerCase().includes(searchLower) ||
       (cliente.whatsapp && cliente.whatsapp.includes(search));
 
-    return matchesFilter && matchesSearch;
+    if (!matchesSearch) return false;
+
+    // Filtro de status de pagamento
+    if (statusPagamentoFilter !== 'todos') {
+      const statusMap: Record<StatusPagamentoFilter, StatusPagamento> = {
+        'todos': 'Em dia',
+        'em_dia': 'Em dia',
+        'em_revisao': 'Em revisão',
+        'atrasado': 'Atrasado',
+      };
+      if (cliente.status !== statusMap[statusPagamentoFilter]) return false;
+    }
+
+    // Filtro de status do cliente
+    if (statusClienteFilter !== 'todos') {
+      const statusMap: Record<StatusClienteFilter, string> = {
+        'todos': '',
+        'ativo': 'ATIVO',
+        'pausado': 'PAUSADO',
+        'cancelado': 'CANCELADO',
+        'quitado': 'QUITADO',
+      };
+      if (cliente.status_cliente !== statusMap[statusClienteFilter]) return false;
+    }
+
+    return true;
   });
 
-  const getFilterLabel = () => {
-    if (isAllSelected) return 'Todos os status';
-    const labels = selectedFilters.map((f) => 
-      statusFilterOptions.find((opt) => opt.value === f)?.label || f
-    );
-    if (labels.length === 1) return labels[0];
-    if (labels.length === 2) return labels.join(', ');
-    return `${labels.length} selecionados`;
+  const getPagamentoFilterLabel = () => {
+    const option = statusPagamentoFilterOptions.find(o => o.value === statusPagamentoFilter);
+    return option?.label || 'Todos';
+  };
+
+  const getClienteFilterLabel = () => {
+    const option = statusClienteFilterOptions.find(o => o.value === statusClienteFilter);
+    return option?.label || 'Todos';
   };
 
   const formatCurrency = (value: number) => {
@@ -142,34 +138,55 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
     <div className="space-y-4">
       {/* Filters and Search */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-        {/* Status Multi-Select Dropdown */}
-        <Popover>
+        {/* Dropdown Pagamento */}
+        <Popover open={pagamentoPopoverOpen} onOpenChange={setPagamentoPopoverOpen}>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="min-w-[180px] justify-between">
-              <span className="truncate">Status: {getFilterLabel()}</span>
+            <Button variant="outline" size="sm" className="min-w-[160px] justify-between">
+              <span className="truncate">Pagamento: {getPagamentoFilterLabel()}</span>
               <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[220px] p-2 bg-popover" align="start">
-            <div className="space-y-1">
-              {statusFilterOptions.map((option) => (
-                <div
+          <PopoverContent className="w-[200px] p-1 bg-popover border border-border z-50" align="start">
+            <div className="flex flex-col">
+              {statusPagamentoFilterOptions.map((option) => (
+                <Button
                   key={option.value}
-                  className="flex items-center space-x-2 rounded-md px-2 py-1.5 hover:bg-accent cursor-pointer"
-                  onClick={() => handleFilterChange(option.value, !selectedFilters.includes(option.value))}
+                  variant={statusPagamentoFilter === option.value ? "secondary" : "ghost"}
+                  className={cn("justify-start", option.color)}
+                  onClick={() => {
+                    setStatusPagamentoFilter(option.value);
+                    setPagamentoPopoverOpen(false);
+                  }}
                 >
-                  <Checkbox
-                    id={option.value}
-                    checked={option.value === 'all' ? isAllSelected : selectedFilters.includes(option.value)}
-                    onCheckedChange={(checked) => handleFilterChange(option.value, !!checked)}
-                  />
-                  <label
-                    htmlFor={option.value}
-                    className={cn('text-sm cursor-pointer flex-1', option.color)}
-                  >
-                    {option.label}
-                  </label>
-                </div>
+                  {option.label}
+                </Button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Dropdown Cliente */}
+        <Popover open={clientePopoverOpen} onOpenChange={setClientePopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="min-w-[140px] justify-between">
+              <span className="truncate">Cliente: {getClienteFilterLabel()}</span>
+              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[200px] p-1 bg-popover border border-border z-50" align="start">
+            <div className="flex flex-col">
+              {statusClienteFilterOptions.map((option) => (
+                <Button
+                  key={option.value}
+                  variant={statusClienteFilter === option.value ? "secondary" : "ghost"}
+                  className={cn("justify-start", option.color)}
+                  onClick={() => {
+                    setStatusClienteFilter(option.value);
+                    setClientePopoverOpen(false);
+                  }}
+                >
+                  {option.label}
+                </Button>
               ))}
             </div>
           </PopoverContent>
