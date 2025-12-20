@@ -1,10 +1,17 @@
 import { useState, useEffect } from 'react';
-import { ClienteCalculado } from '@/types/cliente';
+import { ClienteCalculado, StatusCliente } from '@/types/cliente';
 import { useClientes } from '@/hooks/useClientes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
@@ -59,6 +66,7 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
     parcelas_pagas: '0',
     dia_vencimento: '10',
     data_inicio: new Date().toISOString().split('T')[0],
+    status_cliente: 'ATIVO' as StatusCliente,
   });
 
   useEffect(() => {
@@ -72,6 +80,7 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
         parcelas_pagas: cliente.parcelas_pagas.toString(),
         dia_vencimento: cliente.dia_vencimento.toString(),
         data_inicio: cliente.data_inicio,
+        status_cliente: cliente.status_cliente || 'ATIVO',
       });
     } else {
       setFormData({
@@ -83,6 +92,7 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
         parcelas_pagas: '0',
         dia_vencimento: '10',
         data_inicio: new Date().toISOString().split('T')[0],
+        status_cliente: 'ATIVO',
       });
     }
   }, [cliente, open]);
@@ -103,7 +113,7 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
 
       const data = {
         cliente_nome: formData.cliente_nome.trim(),
-        whatsapp: formData.whatsapp.trim() || '',  // String vazia em vez de null
+        whatsapp: formData.whatsapp.trim() || '',
         produto: formData.produto.trim(),
         valor_total: valorParsed,
         total_parcelas: parseInt(formData.total_parcelas) || 0,
@@ -111,6 +121,7 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
         dia_vencimento: parseInt(formData.dia_vencimento) || 1,
         data_inicio: formData.data_inicio,
         data_ultimo_pagamento: null,
+        status_cliente: formData.status_cliente,
       };
 
       const result = clienteSchema.safeParse(data);
@@ -223,6 +234,24 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
                 onChange={(e) => setFormData({ ...formData, data_inicio: e.target.value })}
               />
             </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="status_cliente">Status do Cliente</Label>
+            <Select
+              value={formData.status_cliente}
+              onValueChange={(value: StatusCliente) => setFormData({ ...formData, status_cliente: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ATIVO">Ativo</SelectItem>
+                <SelectItem value="PAUSADO">Pausado</SelectItem>
+                <SelectItem value="CANCELADO">Cancelado</SelectItem>
+                <SelectItem value="QUITADO">Quitado</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {cliente && (
