@@ -1,3 +1,5 @@
+export type StatusCliente = 'ATIVO' | 'PAUSADO' | 'CANCELADO' | 'QUITADO';
+
 export interface Cliente {
   id: string;
   user_id: string;
@@ -10,6 +12,7 @@ export interface Cliente {
   data_inicio: string;
   data_ultimo_pagamento: string | null;
   dia_vencimento: number;
+  status_cliente: StatusCliente;
   created_at: string;
   updated_at: string;
 }

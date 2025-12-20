@@ -24,6 +24,7 @@ export type Database = {
           id: string
           parcelas_pagas: number
           produto: string
+          status_cliente: string
           total_parcelas: number
           updated_at: string
           user_id: string
@@ -39,6 +40,7 @@ export type Database = {
           id?: string
           parcelas_pagas?: number
           produto: string
+          status_cliente?: string
           total_parcelas: number
           updated_at?: string
           user_id: string
@@ -54,6 +56,7 @@ export type Database = {
           id?: string
           parcelas_pagas?: number
           produto?: string
+          status_cliente?: string
           total_parcelas?: number
           updated_at?: string
           user_id?: string

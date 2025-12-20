@@ -23,9 +23,9 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
       });
     }
 
-    // Calculate forecast for each client
+    // Calculate forecast for each client (only ATIVO clients)
     clientes.forEach((cliente) => {
-      if (cliente.parcelas_pendentes <= 0) return;
+      if (cliente.parcelas_pendentes <= 0 || cliente.status_cliente !== 'ATIVO') return;
 
       let parcelasRestantes = cliente.parcelas_pendentes;
       const valorParcela = cliente.valor_parcela;
