@@ -100,9 +100,14 @@ export function useClientes() {
       // Calcular nova data_ultimo_pagamento
       let novaDataUltimoPagamento: string | null = cliente.data_ultimo_pagamento;
       
+      // Flags de atualização para revisão
+      let limparRevisao = false;
+      
       if (incremento > 0) {
         // +1 parcela: define data como hoje
         novaDataUltimoPagamento = new Date().toISOString().split('T')[0];
+        // Ao pagar, sair do estado de revisão
+        limparRevisao = true;
       } else if (incremento < 0 && cliente.parcelas_pagas > 0) {
         // -1 parcela: retrocede 1 mês na data_ultimo_pagamento
         if (cliente.data_ultimo_pagamento) {
@@ -116,13 +121,21 @@ export function useClientes() {
         }
       }
       
+      // Preparar dados de update
+      const updateData: Record<string, unknown> = {
+        parcelas_pagas: novasParcelas,
+        data_ultimo_pagamento: novaDataUltimoPagamento,
+      };
+      
+      if (limparRevisao) {
+        updateData.em_revisao = false;
+        updateData.mes_referencia_revisao = null;
+      }
+      
       // Update client
       const { error: updateError } = await supabase
         .from('clientes_parcelados')
-        .update({
-          parcelas_pagas: novasParcelas,
-          data_ultimo_pagamento: novaDataUltimoPagamento,
-        })
+        .update(updateData)
         .eq('id', clienteId);
       
       if (updateError) throw updateError;

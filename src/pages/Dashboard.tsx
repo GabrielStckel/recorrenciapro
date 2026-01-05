@@ -5,7 +5,7 @@ import { KPICard } from '@/components/KPICard';
 import { ForecastChart } from '@/components/ForecastChart';
 import { ClientesAtrasados } from '@/components/ClientesAtrasados';
 import { PagamentosEmRevisao } from '@/components/PagamentosEmRevisao';
-import { DollarSign, TrendingUp, AlertTriangle, Clock, Loader2, Filter, Eye } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertTriangle, Clock, Loader2, Filter, Eye, Calendar } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -71,6 +71,29 @@ export default function Dashboard() {
   const clientesEmRevisao = clientesFiltrados.filter((c) => c.em_revisao && c.status_cliente === 'ATIVO');
   const valorEmAtraso = clientesAtrasados.reduce((acc, c) => acc + c.valor_parcela, 0);
 
+  // A receber no mês atual: clientes ATIVOS com parcelas pendentes que ainda NÃO pagaram neste mês
+  const aReceberNoMes = useMemo(() => {
+    const hoje = new Date();
+    const mesAtual = hoje.getMonth();
+    const anoAtual = hoje.getFullYear();
+
+    return clientesFiltrados
+      .filter((c) => {
+        // Somente ATIVOS com parcelas pendentes
+        if (c.status_cliente !== 'ATIVO' || c.parcelas_pendentes <= 0) return false;
+
+        // Verificar se já pagou neste mês
+        if (c.data_ultimo_pagamento) {
+          const ultimoPagamento = new Date(c.data_ultimo_pagamento);
+          if (ultimoPagamento.getMonth() === mesAtual && ultimoPagamento.getFullYear() === anoAtual) {
+            return false; // Já pagou neste mês
+          }
+        }
+        return true;
+      })
+      .reduce((acc, c) => acc + c.valor_parcela, 0);
+  }, [clientesFiltrados]);
+
   if (isLoading) {
     return (
       <Layout>
@@ -111,9 +134,16 @@ export default function Dashboard() {
         )}
 
         {/* KPIs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
           <KPICard title="Total Recebido" value={formatCurrency(totalRecebido)} icon={DollarSign} variant="success" />
           <KPICard title="Total a Receber" value={formatCurrency(totalAReceber)} icon={TrendingUp} />
+          <KPICard 
+            title="A receber no mês" 
+            value={formatCurrency(aReceberNoMes)} 
+            subtitle="Mês atual"
+            icon={Calendar} 
+            variant={aReceberNoMes > 0 ? 'default' : 'success'} 
+          />
           <KPICard title="Em Revisão" value={clientesEmRevisao.length.toString()} icon={Eye} variant={clientesEmRevisao.length > 0 ? 'warning' : 'default'} />
           <KPICard title="Clientes Atrasados" value={clientesAtrasados.length.toString()} icon={AlertTriangle} variant={clientesAtrasados.length > 0 ? 'destructive' : 'default'} />
           <KPICard title="Valor em Atraso" value={formatCurrency(valorEmAtraso)} icon={Clock} variant={valorEmAtraso > 0 ? 'warning' : 'default'} />
