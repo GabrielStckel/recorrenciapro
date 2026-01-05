@@ -53,6 +53,12 @@ function ajustarDiaVencimento(ano: number, mes: number, diaVencimento: number): 
   return Math.min(diaVencimento, ultimoDia);
 }
 
+// Parse seguro de datas "YYYY-MM-DD" como data local (evita problemas de timezone)
+function parseDateOnlyISO(dateStr: string): Date {
+  const [ano, mes, dia] = dateStr.split('-').map(Number);
+  return new Date(ano, mes - 1, dia);
+}
+
 export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
   const valor_parcela = cliente.valor_total / cliente.total_parcelas;
   const parcelas_pendentes = cliente.total_parcelas - cliente.parcelas_pagas;
@@ -63,42 +69,42 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
   const hoje = new Date();
   const mesAtual = hoje.getMonth();
   const anoAtual = hoje.getFullYear();
-  
+
   // Ajustar dia de vencimento para o mês atual (ex: dia 31 em fevereiro -> 28/29)
   const diaVencimentoAjustado = ajustarDiaVencimento(anoAtual, mesAtual, cliente.dia_vencimento);
-  
+
   // Create the due date for current month with adjusted day
   const dataVencimentoMesAtual = new Date(anoAtual, mesAtual, diaVencimentoAjustado);
-  
+
   // Check if there's still pending installments
   let status: StatusPagamento = 'Em dia';
   let dias_em_atraso = 0;
-  
+
   // Only calculate for ATIVO clients with pending parcels
   if (parcelas_pendentes > 0 && cliente.status_cliente === 'ATIVO') {
     // Check if payment was made this month
-    const ultimoPagamento = cliente.data_ultimo_pagamento 
-      ? new Date(cliente.data_ultimo_pagamento) 
+    const ultimoPagamento = cliente.data_ultimo_pagamento
+      ? parseDateOnlyISO(cliente.data_ultimo_pagamento)
       : null;
-    
-    const pagouNesteMes = ultimoPagamento 
+
+    const pagouNesteMes = ultimoPagamento
       ? ultimoPagamento.getMonth() === mesAtual && ultimoPagamento.getFullYear() === anoAtual
       : false;
-    
+
     // Priority: em_revisao = true => "Em revisão"
     if (cliente.em_revisao) {
       status = 'Em revisão';
       // Still calculate days for reference
-      if (hoje > dataVencimentoMesAtual) {
+      if (hoje.getTime() >= dataVencimentoMesAtual.getTime()) {
         dias_em_atraso = Math.floor((hoje.getTime() - dataVencimentoMesAtual.getTime()) / (1000 * 60 * 60 * 24));
       }
-    } else if (hoje > dataVencimentoMesAtual && !pagouNesteMes) {
-      // If today is past due date and no payment this month => Atrasado
+    } else if (hoje.getTime() >= dataVencimentoMesAtual.getTime() && !pagouNesteMes) {
+      // If today is on/after due date and no payment this month => Atrasado
       status = 'Atrasado';
       dias_em_atraso = Math.floor((hoje.getTime() - dataVencimentoMesAtual.getTime()) / (1000 * 60 * 60 * 24));
     }
   }
-  
+
   return {
     ...cliente,
     valor_parcela,
