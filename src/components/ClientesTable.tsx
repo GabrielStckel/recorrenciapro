@@ -266,18 +266,25 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
                       {formatCurrency(cliente.valor_a_receber)}
                     </TableCell>
                     <TableCell className="text-center">
-                      {(() => {
-                        const statusPagamento = statusPagamentoConfig[cliente.status];
-                        return (
-                          <Badge
-                            variant="outline"
-                            className={cn('border', statusPagamento.color)}
-                          >
-                            {cliente.status}
-                            {cliente.dias_em_atraso > 0 && cliente.status !== 'Em dia' && ` (${cliente.dias_em_atraso}d)`}
-                          </Badge>
-                        );
-                      })()}
+                      <div className="flex flex-col items-center gap-1">
+                        {(() => {
+                          const statusPagamento = statusPagamentoConfig[cliente.status];
+                          return (
+                            <Badge
+                              variant="outline"
+                              className={cn('border', statusPagamento.color)}
+                            >
+                              {cliente.status}
+                              {cliente.dias_em_atraso > 0 && cliente.status !== 'Em dia' && ` (${cliente.dias_em_atraso}d)`}
+                            </Badge>
+                          );
+                        })()}
+                        <span className="text-xs text-muted-foreground">
+                          {cliente.data_ultimo_pagamento 
+                            ? new Date(cliente.data_ultimo_pagamento + 'T00:00:00').toLocaleDateString('pt-BR')
+                            : '-'}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-center">
                       <Select
