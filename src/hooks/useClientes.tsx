@@ -85,61 +85,89 @@ export function useClientes() {
 
   const registrarPagamento = useMutation({
     mutationFn: async ({ clienteId, incremento, observacao }: { clienteId: string; incremento: number; observacao?: string }) => {
+      const parseDateOnlyISO = (dateStr: string) => {
+        const [ano, mes, dia] = dateStr.split('-').map(Number);
+        return new Date(ano, mes - 1, dia);
+      };
+
+      const formatDateOnlyISO = (date: Date) => {
+        const ano = date.getFullYear();
+        const mes = String(date.getMonth() + 1).padStart(2, '0');
+        const dia = String(date.getDate()).padStart(2, '0');
+        return `${ano}-${mes}-${dia}`;
+      };
+
+      const subMonthsClampedISO = (dateStr: string, months: number) => {
+        const base = parseDateOnlyISO(dateStr);
+        const alvo = new Date(base.getFullYear(), base.getMonth() - months, 1);
+        const ultimoDia = new Date(alvo.getFullYear(), alvo.getMonth() + 1, 0).getDate();
+        const dia = Math.min(base.getDate(), ultimoDia);
+        return formatDateOnlyISO(new Date(alvo.getFullYear(), alvo.getMonth(), dia));
+      };
+
+      const isSameMonthYear = (a: Date, b: Date) => a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+
       // Get current client data
       const { data: cliente, error: fetchError } = await supabase
         .from('clientes_parcelados')
         .select('*')
         .eq('id', clienteId)
         .single();
-      
+
       if (fetchError) throw fetchError;
-      
+
       const parcelasAntes = cliente.parcelas_pagas;
       const novasParcelas = Math.max(0, Math.min(cliente.total_parcelas, cliente.parcelas_pagas + incremento));
-      
+
       // Calcular nova data_ultimo_pagamento
       let novaDataUltimoPagamento: string | null = cliente.data_ultimo_pagamento;
-      
+
       // Flags de atualização para revisão
       let limparRevisao = false;
-      
+
       if (incremento > 0) {
-        // +1 parcela: define data como hoje
-        novaDataUltimoPagamento = new Date().toISOString().split('T')[0];
+        // +1 parcela: define data como hoje (data local)
+        novaDataUltimoPagamento = formatDateOnlyISO(new Date());
         // Ao pagar, sair do estado de revisão
         limparRevisao = true;
       } else if (incremento < 0 && cliente.parcelas_pagas > 0) {
-        // -1 parcela: retrocede 1 mês na data_ultimo_pagamento
+        // -1 parcela: só desfaz confirmação se o último pagamento estiver no mês atual
         if (cliente.data_ultimo_pagamento) {
-          const dataAtual = new Date(cliente.data_ultimo_pagamento);
-          dataAtual.setMonth(dataAtual.getMonth() - 1);
-          novaDataUltimoPagamento = dataAtual.toISOString().split('T')[0];
+          const hoje = new Date();
+          const ultimoPagamento = parseDateOnlyISO(cliente.data_ultimo_pagamento);
+
+          if (isSameMonthYear(ultimoPagamento, hoje)) {
+            novaDataUltimoPagamento = subMonthsClampedISO(cliente.data_ultimo_pagamento, 1);
+          }
         }
+
         // Se novasParcelas volta a 0, limpar a data
         if (novasParcelas === 0) {
           novaDataUltimoPagamento = null;
         }
       }
-      
+
       // Preparar dados de update
       const updateData: Record<string, unknown> = {
         parcelas_pagas: novasParcelas,
         data_ultimo_pagamento: novaDataUltimoPagamento,
       };
-      
+
       if (limparRevisao) {
         updateData.em_revisao = false;
         updateData.mes_referencia_revisao = null;
       }
-      
-      // Update client
-      const { error: updateError } = await supabase
+
+      // Update client (retorna o registro atualizado para atualizar o cache)
+      const { data: clienteAtualizado, error: updateError } = await supabase
         .from('clientes_parcelados')
         .update(updateData)
-        .eq('id', clienteId);
-      
+        .eq('id', clienteId)
+        .select('*')
+        .single();
+
       if (updateError) throw updateError;
-      
+
       // Registrar movimento
       const tipoMovimento = incremento > 0 ? 'INCREMENTO' : 'DECREMENTO';
       await registrarMovimento.mutateAsync({
@@ -150,7 +178,7 @@ export function useClientes() {
         parcelas_depois: novasParcelas,
         observacao: observacao || null,
       });
-      
+
       // Add to payment history if incrementing
       if (incremento > 0) {
         const valorParcela = cliente.valor_total / cliente.total_parcelas;
@@ -162,16 +190,28 @@ export function useClientes() {
             numero_parcela: novasParcelas,
             registrado_por: user?.email,
           });
-        
+
         if (histError) throw histError;
       }
-      
-      return { novasParcelas };
+
+      return {
+        novasParcelas,
+        clienteAtualizado: calcularDadosCliente(clienteAtualizado as Cliente),
+      };
     },
-    onSuccess: (_, { incremento }) => {
+    onSuccess: (result, { incremento }) => {
+      // Atualiza o cache local imediatamente (status/dias recalculados)
+      if (result?.clienteAtualizado) {
+        queryClient.setQueryData(['clientes'], (old: ClienteCalculado[] | undefined) => {
+          if (!old) return old;
+          return old.map((c) => (c.id === result.clienteAtualizado.id ? result.clienteAtualizado : c));
+        });
+      }
+
+      // Garante refetch
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
       queryClient.invalidateQueries({ queryKey: ['historico'] });
-      toast({ 
+      toast({
         title: incremento > 0 ? 'Pagamento registrado!' : 'Parcela removida',
         description: incremento > 0 ? 'Parcela marcada como paga com sucesso.' : 'Parcela removida com sucesso.',
       });
