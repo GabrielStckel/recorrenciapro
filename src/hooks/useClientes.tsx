@@ -235,7 +235,8 @@ export function useClientes() {
       
       const parcelasAntes = cliente.parcelas_pagas;
       const novasParcelas = Math.min(cliente.total_parcelas, cliente.parcelas_pagas + 1);
-      const novaDataUltimoPagamento = new Date().toISOString().split('T')[0];
+      const now = new Date();
+      const novaDataUltimoPagamento = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       
       // Update client: increment parcela, clear review state
       const { error: updateError } = await supabase

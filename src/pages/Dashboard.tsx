@@ -48,15 +48,15 @@ export default function Dashboard() {
       
       // Check if due date has passed
       if (hoje >= cliente.data_vencimento_mes_atual) {
-        // Check if payment was made this month
-        const ultimoPagamento = cliente.data_ultimo_pagamento 
-          ? new Date(cliente.data_ultimo_pagamento) 
+        // Check if payment was made this month (parse YYYY-MM-DD as local date)
+        const ultimoPagamento = cliente.data_ultimo_pagamento
+          ? new Date(`${cliente.data_ultimo_pagamento}T00:00:00`)
           : null;
-        
-        const pagouNesteMes = ultimoPagamento 
+
+        const pagouNesteMes = ultimoPagamento
           ? ultimoPagamento.getMonth() === hoje.getMonth() && ultimoPagamento.getFullYear() === hoje.getFullYear()
           : false;
-        
+
         // If not paid this month and not already in review, enter review
         if (!pagouNesteMes && !cliente.em_revisao) {
           entrarEmRevisao.mutate({ clienteId: cliente.id, mesReferencia: mesAtual });
@@ -84,7 +84,7 @@ export default function Dashboard() {
 
         // Verificar se já pagou neste mês
         if (c.data_ultimo_pagamento) {
-          const ultimoPagamento = new Date(c.data_ultimo_pagamento);
+          const ultimoPagamento = new Date(`${c.data_ultimo_pagamento}T00:00:00`);
           if (ultimoPagamento.getMonth() === mesAtual && ultimoPagamento.getFullYear() === anoAtual) {
             return false; // Já pagou neste mês
           }
