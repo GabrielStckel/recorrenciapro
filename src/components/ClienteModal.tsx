@@ -30,6 +30,13 @@ function parseBrazilianCurrency(value: string): number {
   return parseFloat(cleaned);
 }
 
+function formatDateOnlyISO(date: Date): string {
+  const ano = date.getFullYear();
+  const mes = String(date.getMonth() + 1).padStart(2, '0');
+  const dia = String(date.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
+}
+
 const clienteSchema = z.object({
   cliente_nome: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo'),
   whatsapp: z.string().max(20, 'WhatsApp muito longo').optional(),
@@ -65,7 +72,7 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
     total_parcelas: '',
     parcelas_pagas: '0',
     dia_vencimento: '10',
-    data_inicio: new Date().toISOString().split('T')[0],
+    data_inicio: formatDateOnlyISO(new Date()),
     status_cliente: 'ATIVO' as StatusCliente,
   });
 
@@ -91,7 +98,7 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
         total_parcelas: '',
         parcelas_pagas: '0',
         dia_vencimento: '10',
-        data_inicio: new Date().toISOString().split('T')[0],
+        data_inicio: formatDateOnlyISO(new Date()),
         status_cliente: 'ATIVO',
       });
     }
