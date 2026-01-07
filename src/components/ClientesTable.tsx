@@ -264,17 +264,19 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
         </span>
       </div>
 
-      {/* Summary Box */}
-      <div className="flex flex-wrap gap-4 p-4 rounded-lg border border-border bg-card/50">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Total parcelas:</span>
-          <span className="font-semibold text-foreground">{formatCurrency(totalParcelas)}</span>
+      {/* Summary Box - only for "Pagar este mês" filter */}
+      {statusPagamentoFilter === 'pagar_este_mes' && (
+        <div className="flex flex-wrap gap-4 p-4 rounded-lg border border-border bg-card/50">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Total parcelas:</span>
+            <span className="font-semibold text-foreground">{formatCurrency(totalParcelas)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Valor em atraso:</span>
+            <span className="font-semibold text-destructive">{formatCurrency(totalEmAtraso)}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Valor em atraso:</span>
-          <span className="font-semibold text-destructive">{formatCurrency(totalEmAtraso)}</span>
-        </div>
-      </div>
+      )}
 
       {/* Table */}
       <div className="rounded-lg border border-border overflow-hidden">
