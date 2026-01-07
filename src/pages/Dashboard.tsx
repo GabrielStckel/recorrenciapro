@@ -189,10 +189,6 @@ export default function Dashboard() {
           <KPICard title="Valor em Atraso" value={formatCurrency(valorEmAtraso)} icon={Clock} variant={valorEmAtraso > 0 ? 'warning' : 'default'} />
         </div>
 
-        {/* Review Section */}
-        {clientesEmRevisao.length > 0 && (
-          <PagamentosEmRevisao clientes={clientesFiltrados} />
-        )}
 
         {/* Evolution Card */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
