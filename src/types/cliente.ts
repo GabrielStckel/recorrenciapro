@@ -65,49 +65,78 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
   const valor_pago = valor_parcela * cliente.parcelas_pagas;
   const valor_a_receber = cliente.valor_total - valor_pago;
 
-  // Calculate status and days overdue
   const hoje = new Date();
   const mesAtual = hoje.getMonth();
   const anoAtual = hoje.getFullYear();
 
-  // Ajustar dia de vencimento para o mês atual (ex: dia 31 em fevereiro -> 28/29)
-  const diaVencimentoAjustado = ajustarDiaVencimento(anoAtual, mesAtual, cliente.dia_vencimento);
+  // Calcula a data de vencimento para um ano/mês, sempre ajustando dias como 31 em fevereiro.
+  // Obs: aceita "mes" fora do range 0-11 (Date normaliza automaticamente).
+  const getDataVencimentoNoMes = (ano: number, mes: number) => {
+    const base = new Date(ano, mes, 1); // normaliza ano/mês
+    const y = base.getFullYear();
+    const m = base.getMonth();
+    const dia = ajustarDiaVencimento(y, m, cliente.dia_vencimento);
+    return new Date(y, m, dia);
+  };
 
-  // Create the due date for current month with adjusted day
-  const dataVencimentoMesAtual = new Date(anoAtual, mesAtual, diaVencimentoAjustado);
+  // Data de vencimento do mês atual (usada na UI)
+  const dataVencimentoMesAtual = getDataVencimentoNoMes(anoAtual, mesAtual);
 
-  // Check if there's still pending installments
+  // Status e atraso
   let status: StatusPagamento = 'Em dia';
   let dias_em_atraso = 0;
 
-  // Only calculate for ATIVO clients with pending parcels
+  // Só calcula status de pagamento para clientes ATIVOS com parcelas pendentes
   if (parcelas_pendentes > 0 && cliente.status_cliente === 'ATIVO') {
-    // Check if payment was made this month (comparing year and month only)
-    const ultimoPagamento = cliente.data_ultimo_pagamento
-      ? parseDateOnlyISO(cliente.data_ultimo_pagamento)
-      : null;
+    const dataInicio = parseDateOnlyISO(cliente.data_inicio);
 
-    const pagouNesteMes = ultimoPagamento
-      ? ultimoPagamento.getMonth() === mesAtual && ultimoPagamento.getFullYear() === anoAtual
-      : false;
+    // Primeira data de vencimento: se o cliente começou antes/no dia de vencimento do mês,
+    // o 1º vencimento é no próprio mês; se começou depois, é no mês seguinte.
+    const vencimentoNoMesInicio = getDataVencimentoNoMes(dataInicio.getFullYear(), dataInicio.getMonth());
+    const primeiraDataVencimento =
+      dataInicio.getTime() <= vencimentoNoMesInicio.getTime()
+        ? vencimentoNoMesInicio
+        : getDataVencimentoNoMes(dataInicio.getFullYear(), dataInicio.getMonth() + 1);
 
-    // Calculate if payment is overdue:
-    // 1. Today is on or after the due date for current month
-    // 2. No payment was made this month
-    const vencimentoPassou = hoje.getTime() >= dataVencimentoMesAtual.getTime();
-    const estaAtrasado = vencimentoPassou && !pagouNesteMes;
+    // Quantas parcelas já deveriam ter vencido até HOJE (baseado no calendário),
+    // independente do campo data_ultimo_pagamento.
+    let parcelasQueDeveriamEstarPagas = 0;
 
-    if (estaAtrasado) {
-      dias_em_atraso = Math.floor((hoje.getTime() - dataVencimentoMesAtual.getTime()) / (1000 * 60 * 60 * 24));
+    if (hoje.getTime() >= primeiraDataVencimento.getTime()) {
+      const diffMeses =
+        (hoje.getFullYear() * 12 + hoje.getMonth()) -
+        (primeiraDataVencimento.getFullYear() * 12 + primeiraDataVencimento.getMonth());
+
+      const incluiMesAtual = hoje.getTime() >= dataVencimentoMesAtual.getTime();
+      parcelasQueDeveriamEstarPagas = diffMeses + (incluiMesAtual ? 1 : 0);
     }
 
-    // Priority: em_revisao = true => "Em revisão", otherwise check if overdue
+    parcelasQueDeveriamEstarPagas = Math.max(
+      0,
+      Math.min(cliente.total_parcelas, parcelasQueDeveriamEstarPagas)
+    );
+
+    const estaAtrasado = cliente.parcelas_pagas < parcelasQueDeveriamEstarPagas;
+
+    if (estaAtrasado) {
+      // Primeira parcela em aberto = índice igual a parcelas_pagas (0-indexado a partir do 1º vencimento)
+      const vencimentoParcelaEmAberto = getDataVencimentoNoMes(
+        primeiraDataVencimento.getFullYear(),
+        primeiraDataVencimento.getMonth() + cliente.parcelas_pagas
+      );
+
+      dias_em_atraso = Math.max(
+        0,
+        Math.floor((hoje.getTime() - vencimentoParcelaEmAberto.getTime()) / (1000 * 60 * 60 * 24))
+      );
+    }
+
+    // Prioridade: em revisão
     if (cliente.em_revisao) {
       status = 'Em revisão';
     } else if (estaAtrasado) {
       status = 'Atrasado';
     }
-    // If not em_revisao and not overdue, status remains 'Em dia'
   }
 
   return {
