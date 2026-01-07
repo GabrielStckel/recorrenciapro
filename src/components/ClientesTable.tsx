@@ -117,9 +117,16 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
 
     if (statusPagamentoFilter !== 'todos') {
       if (statusPagamentoFilter === 'pagar_este_mes') {
+        // Mostrar clientes que precisam pagar: atrasados OU com vencimento este mês
         if (cliente.status_cliente !== 'ATIVO') return false;
         if (cliente.parcelas_pendentes <= 0) return false;
 
+        // Se está atrasado, deve aparecer
+        if (cliente.status === 'Atrasado' || cliente.status === 'Em revisão') {
+          return true;
+        }
+
+        // Se tem vencimento este mês, também deve aparecer
         const hoje = new Date();
         const mesAtual = hoje.getMonth();
         const anoAtual = hoje.getFullYear();
