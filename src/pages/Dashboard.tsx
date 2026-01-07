@@ -4,6 +4,7 @@ import { Layout } from '@/components/Layout';
 import { KPICard } from '@/components/KPICard';
 import { ForecastChart } from '@/components/ForecastChart';
 import { ClientesAtrasados } from '@/components/ClientesAtrasados';
+import { PagamentosEmRevisao } from '@/components/PagamentosEmRevisao';
 import { MinhaEvolucao } from '@/components/MinhaEvolucao';
 import { DollarSign, TrendingUp, AlertTriangle, Clock, Loader2, Filter, Calendar, CheckCircle } from 'lucide-react';
 import {
@@ -83,6 +84,7 @@ export default function Dashboard() {
   const totalRecebido = clientesFiltrados.reduce((acc, c) => acc + c.valor_pago, 0);
   const totalAReceber = clientesFiltrados.reduce((acc, c) => acc + c.valor_a_receber, 0);
   const clientesAtrasados = clientesFiltrados.filter((c) => c.status === 'Atrasado');
+  const clientesEmRevisao = clientesFiltrados.filter((c) => c.em_revisao && c.status_cliente === 'ATIVO');
   const valorEmAtraso = clientesAtrasados.reduce((acc, c) => acc + c.valor_parcela, 0);
 
   // Helpers para cálculos do mês
@@ -186,6 +188,10 @@ export default function Dashboard() {
           <KPICard title="Valor em Atraso" value={formatCurrency(valorEmAtraso)} icon={Clock} variant={valorEmAtraso > 0 ? 'warning' : 'default'} />
         </div>
 
+        {/* Review Section */}
+        {clientesEmRevisao.length > 0 && (
+          <PagamentosEmRevisao clientes={clientesFiltrados} />
+        )}
 
         {/* Evolution Card */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
