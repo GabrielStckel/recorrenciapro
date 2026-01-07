@@ -30,25 +30,30 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
       let parcelasRestantes = cliente.parcelas_pendentes;
       const valorParcela = cliente.valor_parcela;
 
-      // Start from next due date
-      const dataInicio = new Date(cliente.data_inicio);
-      let proximoVencimento = new Date(hoje.getFullYear(), hoje.getMonth(), cliente.dia_vencimento);
-      
-      if (proximoVencimento <= hoje) {
-        proximoVencimento.setMonth(proximoVencimento.getMonth() + 1);
+      const getDueDate = (year: number, month: number) => {
+        const base = new Date(year, month, 1); // normaliza mês/ano
+        const y = base.getFullYear();
+        const m = base.getMonth();
+        const lastDay = new Date(y, m + 1, 0).getDate();
+        const dia = Math.min(cliente.dia_vencimento, lastDay);
+        return new Date(y, m, dia);
+      };
+
+      // Próximo vencimento (sem "drift" de setMonth quando dia=29/30/31)
+      let proximoVencimento = getDueDate(hoje.getFullYear(), hoje.getMonth());
+      if (proximoVencimento.getTime() <= hoje.getTime()) {
+        proximoVencimento = getDueDate(hoje.getFullYear(), hoje.getMonth() + 1);
       }
 
       for (let i = 0; i < 12 && parcelasRestantes > 0; i++) {
-        const mesIndex = meses.findIndex(
-          (m) => m.mes === proximoVencimento.getMonth() && m.ano === proximoVencimento.getFullYear()
-        );
-        
+        const due = getDueDate(proximoVencimento.getFullYear(), proximoVencimento.getMonth() + i);
+
+        const mesIndex = meses.findIndex((m) => m.mes === due.getMonth() && m.ano === due.getFullYear());
+
         if (mesIndex !== -1) {
           meses[mesIndex].valor += valorParcela;
           parcelasRestantes--;
         }
-        
-        proximoVencimento.setMonth(proximoVencimento.getMonth() + 1);
       }
     });
 
