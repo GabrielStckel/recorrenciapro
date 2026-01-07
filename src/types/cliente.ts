@@ -82,7 +82,7 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
 
   // Only calculate for ATIVO clients with pending parcels
   if (parcelas_pendentes > 0 && cliente.status_cliente === 'ATIVO') {
-    // Check if payment was made this month
+    // Check if payment was made this month (comparing year and month only)
     const ultimoPagamento = cliente.data_ultimo_pagamento
       ? parseDateOnlyISO(cliente.data_ultimo_pagamento)
       : null;
@@ -91,18 +91,23 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
       ? ultimoPagamento.getMonth() === mesAtual && ultimoPagamento.getFullYear() === anoAtual
       : false;
 
-    // Priority: em_revisao = true => "Em revisão"
-    if (cliente.em_revisao) {
-      status = 'Em revisão';
-      // Still calculate days for reference
-      if (hoje.getTime() >= dataVencimentoMesAtual.getTime()) {
-        dias_em_atraso = Math.floor((hoje.getTime() - dataVencimentoMesAtual.getTime()) / (1000 * 60 * 60 * 24));
-      }
-    } else if (hoje.getTime() >= dataVencimentoMesAtual.getTime() && !pagouNesteMes) {
-      // If today is on/after due date and no payment this month => Atrasado
-      status = 'Atrasado';
+    // Calculate if payment is overdue:
+    // 1. Today is on or after the due date for current month
+    // 2. No payment was made this month
+    const vencimentoPassou = hoje.getTime() >= dataVencimentoMesAtual.getTime();
+    const estaAtrasado = vencimentoPassou && !pagouNesteMes;
+
+    if (estaAtrasado) {
       dias_em_atraso = Math.floor((hoje.getTime() - dataVencimentoMesAtual.getTime()) / (1000 * 60 * 60 * 24));
     }
+
+    // Priority: em_revisao = true => "Em revisão", otherwise check if overdue
+    if (cliente.em_revisao) {
+      status = 'Em revisão';
+    } else if (estaAtrasado) {
+      status = 'Atrasado';
+    }
+    // If not em_revisao and not overdue, status remains 'Em dia'
   }
 
   return {
