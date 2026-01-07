@@ -36,9 +36,14 @@ export default function Dashboard() {
 
   // Track which clients we've already sent to review (to avoid repeated mutations)
   const clientesRevisadosRef = useRef<Set<string>>(new Set());
+  // Stable reference to entrarEmRevisao.mutate to avoid re-running effect
+  const entrarEmRevisaoMutate = useRef(entrarEmRevisao.mutate);
+  entrarEmRevisaoMutate.current = entrarEmRevisao.mutate;
 
   // Auto-enter review state for clients that need it (run only once per client)
   useEffect(() => {
+    if (clientes.length === 0) return;
+
     const hoje = new Date();
     const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
 
@@ -51,7 +56,10 @@ export default function Dashboard() {
       // Only ATIVO clients with pending parcels
       if (cliente.status_cliente !== 'ATIVO' || cliente.parcelas_pendentes === 0) return;
 
-      // Se já foi revisado/processado neste mês (em revisão OU marcado como não pagou), não mexe
+      // Se já está em revisão, não mexe
+      if (cliente.em_revisao) return;
+
+      // Se já foi revisado/processado neste mês (marcado como não pagou), não mexe
       if (cliente.mes_referencia_revisao === mesAtual) return;
 
       // Se já enviamos mutação para este cliente nesta sessão, não envia de novo
@@ -67,10 +75,10 @@ export default function Dashboard() {
 
       if (!pagouNesteMes) {
         clientesRevisadosRef.current.add(cliente.id);
-        entrarEmRevisao.mutate({ clienteId: cliente.id, mesReferencia: mesAtual });
+        entrarEmRevisaoMutate.current({ clienteId: cliente.id, mesReferencia: mesAtual });
       }
     });
-  }, [clientes, entrarEmRevisao]);
+  }, [clientes]); // Remove entrarEmRevisao from deps - use ref instead
 
   const totalRecebido = clientesFiltrados.reduce((acc, c) => acc + c.valor_pago, 0);
   const totalAReceber = clientesFiltrados.reduce((acc, c) => acc + c.valor_a_receber, 0);
