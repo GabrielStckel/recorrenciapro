@@ -313,8 +313,16 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
                         })()}
                         <span className="text-xs text-muted-foreground">
                           {(() => {
-                            const proximo = getProximoVencimento(cliente);
-                            return proximo ? `Próximo: ${proximo.toLocaleDateString('pt-BR')}` : '-';
+                            const vencimento = getProximoVencimento(cliente);
+                            if (!vencimento) return '-';
+                            const dataFmt = vencimento.toLocaleDateString('pt-BR');
+
+                            // Se estiver atrasado ou em revisão, mostrar somente a data que deveria ter sido paga
+                            if (cliente.status === 'Atrasado' || cliente.status === 'Em revisão') {
+                              return dataFmt;
+                            }
+
+                            return `Próximo: ${dataFmt}`;
                           })()}
                         </span>
                       </div>
