@@ -170,6 +170,12 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
     return option?.label || 'Todos';
   };
 
+  // Cálculos de resumo dos clientes filtrados
+  const totalAReceber = filteredClientes.reduce((acc, c) => acc + c.valor_a_receber, 0);
+  const totalEmAtraso = filteredClientes
+    .filter((c) => c.status === 'Atrasado' || c.status === 'Em revisão')
+    .reduce((acc, c) => acc + c.valor_parcela, 0);
+
   const handlePagamento = (clienteId: string, incremento: number) => {
     registrarPagamento.mutate({ clienteId, incremento });
   };
@@ -253,10 +259,21 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
           />
         </div>
 
-        {/* Results Count */}
         <span className="text-sm text-muted-foreground whitespace-nowrap">
           {filteredClientes.length} de {clientes.length} clientes
         </span>
+      </div>
+
+      {/* Summary Box */}
+      <div className="flex flex-wrap gap-4 p-4 rounded-lg border border-border bg-card/50">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Total a receber:</span>
+          <span className="font-semibold text-foreground">{formatCurrency(totalAReceber)}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Valor em atraso:</span>
+          <span className="font-semibold text-destructive">{formatCurrency(totalEmAtraso)}</span>
+        </div>
       </div>
 
       {/* Table */}
