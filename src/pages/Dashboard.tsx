@@ -5,6 +5,7 @@ import { KPICard } from '@/components/KPICard';
 import { ForecastChart } from '@/components/ForecastChart';
 import { ClientesAtrasados } from '@/components/ClientesAtrasados';
 import { PagamentosEmRevisao } from '@/components/PagamentosEmRevisao';
+import { MinhaEvolucao } from '@/components/MinhaEvolucao';
 import { DollarSign, TrendingUp, AlertTriangle, Clock, Loader2, Filter, Eye, Calendar, CheckCircle } from 'lucide-react';
 import {
   Select,
@@ -193,12 +194,15 @@ export default function Dashboard() {
           <PagamentosEmRevisao clientes={clientesFiltrados} />
         )}
 
-        {/* Chart and Alerts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Evolution Card */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="lg:col-span-1">
+            <MinhaEvolucao totalRecebido={totalRecebido} />
+          </div>
           <div className="lg:col-span-2">
             <ForecastChart clientes={clientesFiltrados} />
           </div>
-          <div>
+          <div className="lg:col-span-1">
             <ClientesAtrasados clientes={clientesFiltrados} />
           </div>
         </div>
