@@ -280,9 +280,7 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
                           );
                         })()}
                         <span className="text-xs text-muted-foreground">
-                          {cliente.data_ultimo_pagamento 
-                            ? new Date(cliente.data_ultimo_pagamento + 'T00:00:00').toLocaleDateString('pt-BR')
-                            : '-'}
+                          Vence: {cliente.data_vencimento_mes_atual.toLocaleDateString('pt-BR')} (dia {cliente.dia_vencimento})
                         </span>
                       </div>
                     </TableCell>
