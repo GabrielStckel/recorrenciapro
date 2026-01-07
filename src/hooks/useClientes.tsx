@@ -330,7 +330,7 @@ export function useClientes() {
     },
   });
 
-  // Mutation to enter review state
+  // Mutation to enter review state (silent - no toast on error to avoid repeated messages)
   const entrarEmRevisao = useMutation({
     mutationFn: async ({ clienteId, mesReferencia }: { clienteId: string; mesReferencia: string }) => {
       const { error } = await supabase
@@ -346,9 +346,7 @@ export function useClientes() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
     },
-    onError: (error) => {
-      toast({ title: 'Erro ao atualizar revisão', description: error.message, variant: 'destructive' });
-    },
+    // No toast on error - this mutation runs automatically and silently
   });
 
   return {
