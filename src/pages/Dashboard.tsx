@@ -39,15 +39,27 @@ export default function Dashboard() {
     const hoje = new Date();
     const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
 
+    const parseDateOnlyISO = (dateStr: string): Date => {
+      const [ano, mes, dia] = dateStr.split('-').map(Number);
+      return new Date(ano, mes - 1, dia);
+    };
+
     clientes.forEach((cliente) => {
       // Only ATIVO clients with pending parcels
       if (cliente.status_cliente !== 'ATIVO' || cliente.parcelas_pendentes === 0) return;
 
-      // Skip if already in review for current month
-      if (cliente.em_revisao && cliente.mes_referencia_revisao === mesAtual) return;
+      // Se já foi revisado/processado neste mês (em revisão OU marcado como não pagou), não mexe
+      if (cliente.mes_referencia_revisao === mesAtual) return;
 
-      // Se está atrasado (dias_em_atraso > 0), entra em revisão
-      if (!cliente.em_revisao && cliente.dias_em_atraso > 0) {
+      // Só entra em revisão se o vencimento do mês atual já passou e ainda não pagou neste mês
+      if (hoje.getTime() < cliente.data_vencimento_mes_atual.getTime()) return;
+
+      const ultimoPagamento = cliente.data_ultimo_pagamento ? parseDateOnlyISO(cliente.data_ultimo_pagamento) : null;
+      const pagouNesteMes = ultimoPagamento
+        ? ultimoPagamento.getMonth() === hoje.getMonth() && ultimoPagamento.getFullYear() === hoje.getFullYear()
+        : false;
+
+      if (!pagouNesteMes) {
         entrarEmRevisao.mutate({ clienteId: cliente.id, mesReferencia: mesAtual });
       }
     });
