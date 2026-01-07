@@ -1,11 +1,11 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useClientes } from '@/hooks/useClientes';
 import { Layout } from '@/components/Layout';
 import { KPICard } from '@/components/KPICard';
 import { ForecastChart } from '@/components/ForecastChart';
 import { ClientesAtrasados } from '@/components/ClientesAtrasados';
 import { PagamentosEmRevisao } from '@/components/PagamentosEmRevisao';
-import { DollarSign, TrendingUp, AlertTriangle, Clock, Loader2, Filter, Eye, Calendar } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertTriangle, Clock, Loader2, Filter, Eye, Calendar, CheckCircle } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -34,7 +34,10 @@ export default function Dashboard() {
     return clientes.filter((c) => c.produto === selectedProduto);
   }, [clientes, selectedProduto]);
 
-  // Auto-enter review state for clients that need it
+  // Track which clients we've already sent to review (to avoid repeated mutations)
+  const clientesRevisadosRef = useRef<Set<string>>(new Set());
+
+  // Auto-enter review state for clients that need it (run only once per client)
   useEffect(() => {
     const hoje = new Date();
     const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
@@ -51,6 +54,9 @@ export default function Dashboard() {
       // Se já foi revisado/processado neste mês (em revisão OU marcado como não pagou), não mexe
       if (cliente.mes_referencia_revisao === mesAtual) return;
 
+      // Se já enviamos mutação para este cliente nesta sessão, não envia de novo
+      if (clientesRevisadosRef.current.has(cliente.id)) return;
+
       // Só entra em revisão se o vencimento do mês atual já passou e ainda não pagou neste mês
       if (hoje.getTime() < cliente.data_vencimento_mes_atual.getTime()) return;
 
@@ -60,6 +66,7 @@ export default function Dashboard() {
         : false;
 
       if (!pagouNesteMes) {
+        clientesRevisadosRef.current.add(cliente.id);
         entrarEmRevisao.mutate({ clienteId: cliente.id, mesReferencia: mesAtual });
       }
     });
@@ -71,12 +78,29 @@ export default function Dashboard() {
   const clientesEmRevisao = clientesFiltrados.filter((c) => c.em_revisao && c.status_cliente === 'ATIVO');
   const valorEmAtraso = clientesAtrasados.reduce((acc, c) => acc + c.valor_parcela, 0);
 
+  // Helpers para cálculos do mês
+  const parseDateOnlyISO = (dateStr: string): Date => {
+    const [ano, mes, dia] = dateStr.split('-').map(Number);
+    return new Date(ano, mes - 1, dia);
+  };
+
+  const hoje = new Date();
+  const mesAtual = hoje.getMonth();
+  const anoAtual = hoje.getFullYear();
+
+  // Recebido no mês atual: clientes que pagaram neste mês
+  const recebidoNoMes = useMemo(() => {
+    return clientesFiltrados
+      .filter((c) => {
+        if (!c.data_ultimo_pagamento) return false;
+        const ultimoPagamento = parseDateOnlyISO(c.data_ultimo_pagamento);
+        return ultimoPagamento.getMonth() === mesAtual && ultimoPagamento.getFullYear() === anoAtual;
+      })
+      .reduce((acc, c) => acc + c.valor_parcela, 0);
+  }, [clientesFiltrados, mesAtual, anoAtual]);
+
   // A receber no mês atual: clientes ATIVOS com parcelas pendentes que ainda NÃO pagaram neste mês
   const aReceberNoMes = useMemo(() => {
-    const hoje = new Date();
-    const mesAtual = hoje.getMonth();
-    const anoAtual = hoje.getFullYear();
-
     return clientesFiltrados
       .filter((c) => {
         // Somente ATIVOS com parcelas pendentes
@@ -84,7 +108,7 @@ export default function Dashboard() {
 
         // Verificar se já pagou neste mês
         if (c.data_ultimo_pagamento) {
-          const ultimoPagamento = new Date(`${c.data_ultimo_pagamento}T00:00:00`);
+          const ultimoPagamento = parseDateOnlyISO(c.data_ultimo_pagamento);
           if (ultimoPagamento.getMonth() === mesAtual && ultimoPagamento.getFullYear() === anoAtual) {
             return false; // Já pagou neste mês
           }
@@ -92,7 +116,7 @@ export default function Dashboard() {
         return true;
       })
       .reduce((acc, c) => acc + c.valor_parcela, 0);
-  }, [clientesFiltrados]);
+  }, [clientesFiltrados, mesAtual, anoAtual]);
 
   if (isLoading) {
     return (
@@ -134,9 +158,16 @@ export default function Dashboard() {
         )}
 
         {/* KPIs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-4">
           <KPICard title="Total Recebido" value={formatCurrency(totalRecebido)} icon={DollarSign} variant="success" />
           <KPICard title="Total a Receber" value={formatCurrency(totalAReceber)} icon={TrendingUp} />
+          <KPICard 
+            title="Recebido no mês" 
+            value={formatCurrency(recebidoNoMes)} 
+            subtitle="Mês atual"
+            icon={CheckCircle} 
+            variant="success" 
+          />
           <KPICard 
             title="A receber no mês" 
             value={formatCurrency(aReceberNoMes)} 
