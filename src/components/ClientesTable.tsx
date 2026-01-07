@@ -68,8 +68,45 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
   const [search, setSearch] = useState('');
   const { registrarPagamento, deleteCliente, updateCliente } = useClientes();
 
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(value);
+  };
+
+  const parseDateOnlyISO = (dateStr: string): Date => {
+    const [ano, mes, dia] = dateStr.split('-').map(Number);
+    return new Date(ano, mes - 1, dia);
+  };
+
+  const getDueDateClamped = (year: number, month: number, diaVencimento: number): Date => {
+    const base = new Date(year, month, 1);
+    const y = base.getFullYear();
+    const m = base.getMonth();
+    const lastDay = new Date(y, m + 1, 0).getDate();
+    const dia = Math.min(Math.max(diaVencimento, 1), lastDay);
+    return new Date(y, m, dia);
+  };
+
+  const getPrimeiroVencimento = (cliente: ClienteCalculado): Date => {
+    const inicio = parseDateOnlyISO(cliente.data_inicio);
+    const vencNoMesInicio = getDueDateClamped(inicio.getFullYear(), inicio.getMonth(), cliente.dia_vencimento);
+
+    return inicio.getTime() <= vencNoMesInicio.getTime()
+      ? vencNoMesInicio
+      : getDueDateClamped(inicio.getFullYear(), inicio.getMonth() + 1, cliente.dia_vencimento);
+  };
+
+  const getProximoVencimento = (cliente: ClienteCalculado): Date | null => {
+    if (cliente.status_cliente !== 'ATIVO') return null;
+    if (cliente.parcelas_pendentes <= 0) return null;
+
+    const primeiro = getPrimeiroVencimento(cliente);
+    return getDueDateClamped(primeiro.getFullYear(), primeiro.getMonth() + cliente.parcelas_pagas, cliente.dia_vencimento);
+  };
+
   const filteredClientes = clientes.filter((cliente) => {
-    // Filtro de busca
     const searchLower = search.toLowerCase();
     const matchesSearch =
       !search ||
@@ -78,10 +115,8 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
 
     if (!matchesSearch) return false;
 
-    // Filtro de status de pagamento
     if (statusPagamentoFilter !== 'todos') {
       if (statusPagamentoFilter === 'pagar_este_mes') {
-        // Mostrar clientes ATIVOS que ainda têm parcela para pagar este mês
         if (cliente.status_cliente !== 'ATIVO') return false;
         if (cliente.parcelas_pendentes <= 0) return false;
 
@@ -92,7 +127,6 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
         const vencimento = getProximoVencimento(cliente);
         if (!vencimento) return false;
 
-        // Vencimento deve ser neste mês
         const venceEsteMes = vencimento.getMonth() === mesAtual && vencimento.getFullYear() === anoAtual;
         if (!venceEsteMes) return false;
       } else {
@@ -105,7 +139,6 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
       }
     }
 
-    // Filtro de status do cliente
     if (statusClienteFilter !== 'todos') {
       const statusMap: Record<StatusClienteFilter, string> = {
         'todos': '',
@@ -128,45 +161,6 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
   const getClienteFilterLabel = () => {
     const option = statusClienteFilterOptions.find(o => o.value === statusClienteFilter);
     return option?.label || 'Todos';
-  };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value);
-  };
-
-  const parseDateOnlyISO = (dateStr: string): Date => {
-    const [ano, mes, dia] = dateStr.split('-').map(Number);
-    return new Date(ano, mes - 1, dia);
-  };
-
-  const getDueDateClamped = (year: number, month: number, diaVencimento: number): Date => {
-    const base = new Date(year, month, 1); // normaliza mês/ano
-    const y = base.getFullYear();
-    const m = base.getMonth();
-    const lastDay = new Date(y, m + 1, 0).getDate();
-    const dia = Math.min(Math.max(diaVencimento, 1), lastDay);
-    return new Date(y, m, dia);
-  };
-
-  const getPrimeiroVencimento = (cliente: ClienteCalculado): Date => {
-    const inicio = parseDateOnlyISO(cliente.data_inicio);
-    const vencNoMesInicio = getDueDateClamped(inicio.getFullYear(), inicio.getMonth(), cliente.dia_vencimento);
-
-    return inicio.getTime() <= vencNoMesInicio.getTime()
-      ? vencNoMesInicio
-      : getDueDateClamped(inicio.getFullYear(), inicio.getMonth() + 1, cliente.dia_vencimento);
-  };
-
-  // Próximo pagamento = vencimento da próxima parcela em aberto
-  const getProximoVencimento = (cliente: ClienteCalculado): Date | null => {
-    if (cliente.status_cliente !== 'ATIVO') return null;
-    if (cliente.parcelas_pendentes <= 0) return null;
-
-    const primeiro = getPrimeiroVencimento(cliente);
-    return getDueDateClamped(primeiro.getFullYear(), primeiro.getMonth() + cliente.parcelas_pagas, cliente.dia_vencimento);
   };
 
   const handlePagamento = (clienteId: string, incremento: number) => {
