@@ -289,18 +289,39 @@ export function useClientes() {
   // Mutation to mark as not paid (late)
   const marcarComoAtrasado = useMutation({
     mutationFn: async ({ clienteId }: { clienteId: string }) => {
-      // Just clear the review state - status will be calculated as Atrasado automatically
+      const hoje = new Date();
+      const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+
+      // Sai da revisão e marca o mês como "processado" (evita reentrar em revisão automaticamente)
       const { error: updateError } = await supabase
         .from('clientes_parcelados')
         .update({
           em_revisao: false,
-          mes_referencia_revisao: null,
+          mes_referencia_revisao: mesAtual,
         })
         .eq('id', clienteId);
-      
+
       if (updateError) throw updateError;
+
+      return { clienteId, mesAtual };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      // Atualiza cache imediatamente para remover do painel de revisão
+      if (result?.clienteId) {
+        queryClient.setQueryData(['clientes'], (old: ClienteCalculado[] | undefined) => {
+          if (!old) return old;
+          return old.map((c) =>
+            c.id === result.clienteId
+              ? calcularDadosCliente({
+                  ...(c as unknown as Cliente),
+                  em_revisao: false,
+                  mes_referencia_revisao: result.mesAtual,
+                })
+              : c
+          );
+        });
+      }
+
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
       toast({ title: 'Cliente marcado como atrasado', variant: 'destructive' });
     },
