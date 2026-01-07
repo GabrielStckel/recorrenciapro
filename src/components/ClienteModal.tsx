@@ -118,19 +118,55 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
         return;
       }
 
-      const data = {
+      const totalParcelasParsed = parseInt(formData.total_parcelas, 10);
+      const parcelasPagasParsed = parseInt(formData.parcelas_pagas, 10);
+      const diaVencimentoParsed = parseInt(formData.dia_vencimento, 10);
+
+      if (!Number.isInteger(totalParcelasParsed) || totalParcelasParsed <= 0) {
+        toast({
+          title: 'Erro de validação',
+          description: 'Total de parcelas deve ser um número inteiro maior que zero.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (!Number.isInteger(parcelasPagasParsed) || parcelasPagasParsed < 0) {
+        toast({
+          title: 'Erro de validação',
+          description: 'Parcelas pagas deve ser um número inteiro maior ou igual a zero.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (!Number.isInteger(diaVencimentoParsed) || diaVencimentoParsed < 1 || diaVencimentoParsed > 31) {
+        toast({
+          title: 'Erro de validação',
+          description: 'Dia de vencimento deve estar entre 1 e 31.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const baseData = {
         cliente_nome: formData.cliente_nome.trim(),
         whatsapp: formData.whatsapp.trim() || '',
         produto: formData.produto.trim(),
         valor_total: valorParsed,
-        total_parcelas: parseInt(formData.total_parcelas) || 0,
-        parcelas_pagas: parseInt(formData.parcelas_pagas) || 0,
-        dia_vencimento: parseInt(formData.dia_vencimento) || 1,
+        total_parcelas: totalParcelasParsed,
+        parcelas_pagas: parcelasPagasParsed,
+        dia_vencimento: diaVencimentoParsed,
         data_inicio: formData.data_inicio,
-        data_ultimo_pagamento: null,
         status_cliente: formData.status_cliente,
-        em_revisao: false,
-        mes_referencia_revisao: null,
+      };
+
+      // Mantém campos automáticos ao editar; define defaults ao criar
+      const data = {
+        ...baseData,
+        data_ultimo_pagamento: cliente ? cliente.data_ultimo_pagamento : null,
+        em_revisao: cliente ? cliente.em_revisao : false,
+        mes_referencia_revisao: cliente ? cliente.mes_referencia_revisao : null,
       };
 
       const result = clienteSchema.safeParse(data);
