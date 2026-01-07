@@ -171,7 +171,7 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
   };
 
   // Cálculos de resumo dos clientes filtrados
-  const totalAReceber = filteredClientes.reduce((acc, c) => acc + c.valor_a_receber, 0);
+  const totalParcelas = filteredClientes.reduce((acc, c) => acc + c.valor_parcela, 0);
   const totalEmAtraso = filteredClientes
     .filter((c) => c.status === 'Atrasado' || c.status === 'Em revisão')
     .reduce((acc, c) => acc + c.valor_parcela, 0);
@@ -267,8 +267,8 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
       {/* Summary Box */}
       <div className="flex flex-wrap gap-4 p-4 rounded-lg border border-border bg-card/50">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Total a receber:</span>
-          <span className="font-semibold text-foreground">{formatCurrency(totalAReceber)}</span>
+          <span className="text-sm text-muted-foreground">Total parcelas:</span>
+          <span className="font-semibold text-foreground">{formatCurrency(totalParcelas)}</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Valor em atraso:</span>
