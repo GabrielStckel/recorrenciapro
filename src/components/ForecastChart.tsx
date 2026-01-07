@@ -23,15 +23,20 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
       });
     }
 
-    // Calculate forecast for each client (only ATIVO clients)
+    // Calculate forecast based on CONTRACTS (not payments made)
+    // This forecast only changes when clients are added/removed, not when payments are made
     clientes.forEach((cliente) => {
-      if (cliente.parcelas_pendentes <= 0 || cliente.status_cliente !== 'ATIVO') return;
+      if (cliente.status_cliente !== 'ATIVO') return;
 
-      let parcelasRestantes = cliente.parcelas_pendentes;
       const valorParcela = cliente.valor_parcela;
+      const totalParcelas = cliente.total_parcelas;
+
+      // Parse data_inicio to determine when the contract started
+      const [year, month, day] = cliente.data_inicio.split('-').map(Number);
+      const dataInicio = new Date(year, month - 1, day);
 
       const getDueDate = (year: number, month: number) => {
-        const base = new Date(year, month, 1); // normaliza mês/ano
+        const base = new Date(year, month, 1);
         const y = base.getFullYear();
         const m = base.getMonth();
         const lastDay = new Date(y, m + 1, 0).getDate();
@@ -39,20 +44,18 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
         return new Date(y, m, dia);
       };
 
-      // Próximo vencimento (sem "drift" de setMonth quando dia=29/30/31)
-      let proximoVencimento = getDueDate(hoje.getFullYear(), hoje.getMonth());
-      if (proximoVencimento.getTime() <= hoje.getTime()) {
-        proximoVencimento = getDueDate(hoje.getFullYear(), hoje.getMonth() + 1);
-      }
+      // Calculate all payment dates based on contract start
+      // First payment is in the month of data_inicio
+      const primeiroPagamento = getDueDate(dataInicio.getFullYear(), dataInicio.getMonth());
 
-      for (let i = 0; i < 12 && parcelasRestantes > 0; i++) {
-        const due = getDueDate(proximoVencimento.getFullYear(), proximoVencimento.getMonth() + i);
+      for (let i = 0; i < totalParcelas; i++) {
+        const due = getDueDate(primeiroPagamento.getFullYear(), primeiroPagamento.getMonth() + i);
 
+        // Only include if it falls within our 12-month forecast window
         const mesIndex = meses.findIndex((m) => m.mes === due.getMonth() && m.ano === due.getFullYear());
 
         if (mesIndex !== -1) {
           meses[mesIndex].valor += valorParcela;
-          parcelasRestantes--;
         }
       }
     });
