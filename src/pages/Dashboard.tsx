@@ -38,29 +38,17 @@ export default function Dashboard() {
   useEffect(() => {
     const hoje = new Date();
     const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
-    
+
     clientes.forEach((cliente) => {
       // Only ATIVO clients with pending parcels
       if (cliente.status_cliente !== 'ATIVO' || cliente.parcelas_pendentes === 0) return;
-      
+
       // Skip if already in review for current month
       if (cliente.em_revisao && cliente.mes_referencia_revisao === mesAtual) return;
-      
-      // Check if due date has passed
-      if (hoje >= cliente.data_vencimento_mes_atual) {
-        // Check if payment was made this month (parse YYYY-MM-DD as local date)
-        const ultimoPagamento = cliente.data_ultimo_pagamento
-          ? new Date(`${cliente.data_ultimo_pagamento}T00:00:00`)
-          : null;
 
-        const pagouNesteMes = ultimoPagamento
-          ? ultimoPagamento.getMonth() === hoje.getMonth() && ultimoPagamento.getFullYear() === hoje.getFullYear()
-          : false;
-
-        // If not paid this month and not already in review, enter review
-        if (!pagouNesteMes && !cliente.em_revisao) {
-          entrarEmRevisao.mutate({ clienteId: cliente.id, mesReferencia: mesAtual });
-        }
+      // Se está atrasado (dias_em_atraso > 0), entra em revisão
+      if (!cliente.em_revisao && cliente.dias_em_atraso > 0) {
+        entrarEmRevisao.mutate({ clienteId: cliente.id, mesReferencia: mesAtual });
       }
     });
   }, [clientes, entrarEmRevisao]);
