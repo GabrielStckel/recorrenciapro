@@ -28,11 +28,12 @@ interface ClientesTableProps {
   onMovimentos: (cliente: ClienteCalculado) => void;
 }
 
-type StatusPagamentoFilter = 'todos' | 'em_dia' | 'em_revisao' | 'atrasado';
+type StatusPagamentoFilter = 'todos' | 'em_dia' | 'em_revisao' | 'atrasado' | 'pagar_este_mes';
 type StatusClienteFilter = 'todos' | 'ativo' | 'pausado' | 'cancelado' | 'quitado';
 
 const statusPagamentoFilterOptions: { value: StatusPagamentoFilter; label: string; color?: string }[] = [
   { value: 'todos', label: 'Todos' },
+  { value: 'pagar_este_mes', label: 'Pagar este mês', color: 'text-info' },
   { value: 'em_dia', label: 'Em dia', color: 'text-success' },
   { value: 'em_revisao', label: 'Em revisão', color: 'text-warning' },
   { value: 'atrasado', label: 'Atrasado', color: 'text-destructive' },
@@ -79,13 +80,29 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
 
     // Filtro de status de pagamento
     if (statusPagamentoFilter !== 'todos') {
-      const statusMap: Record<StatusPagamentoFilter, StatusPagamento> = {
-        'todos': 'Em dia',
-        'em_dia': 'Em dia',
-        'em_revisao': 'Em revisão',
-        'atrasado': 'Atrasado',
-      };
-      if (cliente.status !== statusMap[statusPagamentoFilter]) return false;
+      if (statusPagamentoFilter === 'pagar_este_mes') {
+        // Mostrar clientes ATIVOS que ainda têm parcela para pagar este mês
+        if (cliente.status_cliente !== 'ATIVO') return false;
+        if (cliente.parcelas_pendentes <= 0) return false;
+
+        const hoje = new Date();
+        const mesAtual = hoje.getMonth();
+        const anoAtual = hoje.getFullYear();
+
+        const vencimento = getProximoVencimento(cliente);
+        if (!vencimento) return false;
+
+        // Vencimento deve ser neste mês
+        const venceEsteMes = vencimento.getMonth() === mesAtual && vencimento.getFullYear() === anoAtual;
+        if (!venceEsteMes) return false;
+      } else {
+        const statusMap: Record<Exclude<StatusPagamentoFilter, 'todos' | 'pagar_este_mes'>, StatusPagamento> = {
+          'em_dia': 'Em dia',
+          'em_revisao': 'Em revisão',
+          'atrasado': 'Atrasado',
+        };
+        if (cliente.status !== statusMap[statusPagamentoFilter]) return false;
+      }
     }
 
     // Filtro de status do cliente
