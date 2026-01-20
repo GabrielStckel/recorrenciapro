@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { ClienteCalculado, StatusCliente, StatusPagamento } from '@/types/cliente';
 import { useClientes } from '@/hooks/useClientes';
+import { useProdutos } from '@/hooks/useProdutos';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import {
@@ -18,7 +20,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Plus, Minus, History, Edit, Trash2, MoreHorizontal, Search, Clock, UserCheck, UserX, Pause, CheckCircle, ChevronDown } from 'lucide-react';
+import { Plus, Minus, History, Edit, Trash2, MoreHorizontal, Search, Clock, UserCheck, UserX, Pause, CheckCircle, ChevronDown, Filter, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ClientesTableProps {
@@ -63,10 +65,11 @@ const statusConfig: Record<StatusCliente, { label: string; color: string; icon: 
 export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: ClientesTableProps) {
   const [statusPagamentoFilter, setStatusPagamentoFilter] = useState<StatusPagamentoFilter>('todos');
   const [statusClienteFilter, setStatusClienteFilter] = useState<StatusClienteFilter>('todos');
-  const [pagamentoPopoverOpen, setPagamentoPopoverOpen] = useState(false);
-  const [clientePopoverOpen, setClientePopoverOpen] = useState(false);
+  const [produtoFilter, setProdutoFilter] = useState<string>('todos');
+  const [filtersPopoverOpen, setFiltersPopoverOpen] = useState(false);
   const [search, setSearch] = useState('');
   const { registrarPagamento, deleteCliente, updateCliente } = useClientes();
+  const { produtos } = useProdutos();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -115,6 +118,11 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
 
     if (!matchesSearch) return false;
 
+    // Filtro de produto
+    if (produtoFilter !== 'todos' && cliente.produto !== produtoFilter) {
+      return false;
+    }
+
     if (statusPagamentoFilter !== 'todos') {
       if (statusPagamentoFilter === 'pagar_este_mes') {
         // Mostrar clientes que precisam pagar: atrasados OU com vencimento este mês
@@ -160,14 +168,18 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
     return true;
   });
 
-  const getPagamentoFilterLabel = () => {
-    const option = statusPagamentoFilterOptions.find(o => o.value === statusPagamentoFilter);
-    return option?.label || 'Todos';
+  const getActiveFiltersCount = () => {
+    let count = 0;
+    if (statusPagamentoFilter !== 'todos') count++;
+    if (statusClienteFilter !== 'todos') count++;
+    if (produtoFilter !== 'todos') count++;
+    return count;
   };
 
-  const getClienteFilterLabel = () => {
-    const option = statusClienteFilterOptions.find(o => o.value === statusClienteFilter);
-    return option?.label || 'Todos';
+  const clearAllFilters = () => {
+    setStatusPagamentoFilter('todos');
+    setStatusClienteFilter('todos');
+    setProdutoFilter('todos');
   };
 
   // Cálculos de resumo dos clientes filtrados
@@ -194,59 +206,113 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
     <div className="space-y-4">
       {/* Filters and Search */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-        {/* Dropdown Pagamento */}
-        <Popover open={pagamentoPopoverOpen} onOpenChange={setPagamentoPopoverOpen}>
+        {/* Filtros agrupados */}
+        <Popover open={filtersPopoverOpen} onOpenChange={setFiltersPopoverOpen}>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="min-w-[160px] justify-between">
-              <span className="truncate">Pagamento: {getPagamentoFilterLabel()}</span>
-              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            <Button variant="outline" size="sm" className="min-w-[120px] justify-between gap-2">
+              <Filter className="h-4 w-4" />
+              <span>Filtros</span>
+              {getActiveFiltersCount() > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                  {getActiveFiltersCount()}
+                </Badge>
+              )}
+              <ChevronDown className="ml-1 h-4 w-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[200px] p-1 bg-popover border border-border z-50" align="start">
-            <div className="flex flex-col">
-              {statusPagamentoFilterOptions.map((option) => (
+          <PopoverContent className="w-[280px] p-4 bg-popover border border-border z-50" align="start">
+            <div className="space-y-4">
+              {/* Filtro de Pagamento */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Status Pagamento</Label>
+                <Select value={statusPagamentoFilter} onValueChange={(v: StatusPagamentoFilter) => setStatusPagamentoFilter(v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusPagamentoFilterOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        <span className={option.color}>{option.label}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Filtro de Status Cliente */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Status Cliente</Label>
+                <Select value={statusClienteFilter} onValueChange={(v: StatusClienteFilter) => setStatusClienteFilter(v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusClienteFilterOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        <span className={option.color}>{option.label}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Filtro de Produto */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Produto</Label>
+                <Select value={produtoFilter} onValueChange={setProdutoFilter}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    {produtos.map((p) => (
+                      <SelectItem key={p.id} value={p.nome}>
+                        {p.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Botão limpar filtros */}
+              {getActiveFiltersCount() > 0 && (
                 <Button
-                  key={option.value}
-                  variant={statusPagamentoFilter === option.value ? "secondary" : "ghost"}
-                  className={cn("justify-start", option.color)}
-                  onClick={() => {
-                    setStatusPagamentoFilter(option.value);
-                    setPagamentoPopoverOpen(false);
-                  }}
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-muted-foreground"
+                  onClick={clearAllFilters}
                 >
-                  {option.label}
+                  <X className="w-4 h-4 mr-2" />
+                  Limpar filtros
                 </Button>
-              ))}
+              )}
             </div>
           </PopoverContent>
         </Popover>
 
-        {/* Dropdown Cliente */}
-        <Popover open={clientePopoverOpen} onOpenChange={setClientePopoverOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="min-w-[140px] justify-between">
-              <span className="truncate">Cliente: {getClienteFilterLabel()}</span>
-              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[200px] p-1 bg-popover border border-border z-50" align="start">
-            <div className="flex flex-col">
-              {statusClienteFilterOptions.map((option) => (
-                <Button
-                  key={option.value}
-                  variant={statusClienteFilter === option.value ? "secondary" : "ghost"}
-                  className={cn("justify-start", option.color)}
-                  onClick={() => {
-                    setStatusClienteFilter(option.value);
-                    setClientePopoverOpen(false);
-                  }}
-                >
-                  {option.label}
-                </Button>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
+        {/* Badges dos filtros ativos */}
+        {getActiveFiltersCount() > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {statusPagamentoFilter !== 'todos' && (
+              <Badge variant="secondary" className="gap-1">
+                {statusPagamentoFilterOptions.find(o => o.value === statusPagamentoFilter)?.label}
+                <X className="w-3 h-3 cursor-pointer hover:text-destructive" onClick={() => setStatusPagamentoFilter('todos')} />
+              </Badge>
+            )}
+            {statusClienteFilter !== 'todos' && (
+              <Badge variant="secondary" className="gap-1">
+                {statusClienteFilterOptions.find(o => o.value === statusClienteFilter)?.label}
+                <X className="w-3 h-3 cursor-pointer hover:text-destructive" onClick={() => setStatusClienteFilter('todos')} />
+              </Badge>
+            )}
+            {produtoFilter !== 'todos' && (
+              <Badge variant="secondary" className="gap-1">
+                {produtoFilter}
+                <X className="w-3 h-3 cursor-pointer hover:text-destructive" onClick={() => setProdutoFilter('todos')} />
+              </Badge>
+            )}
+          </div>
+        )}
 
         {/* Search */}
         <div className="relative flex-1 max-w-sm">
