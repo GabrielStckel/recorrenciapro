@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ClienteCalculado, StatusCliente } from '@/types/cliente';
 import { useClientes } from '@/hooks/useClientes';
+import { useProdutos } from '@/hooks/useProdutos';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 
@@ -63,7 +64,10 @@ interface ClienteModalProps {
 
 export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
   const { addCliente, updateCliente } = useClientes();
+  const { produtos, addProduto } = useProdutos();
   const { toast } = useToast();
+  const [novoProduto, setNovoProduto] = useState('');
+  const [showNovoProduto, setShowNovoProduto] = useState(false);
   const [formData, setFormData] = useState({
     cliente_nome: '',
     whatsapp: '',
@@ -223,12 +227,70 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
 
           <div className="grid gap-2">
             <Label htmlFor="produto">Produto *</Label>
-            <Input
-              id="produto"
-              value={formData.produto}
-              onChange={(e) => setFormData({ ...formData, produto: e.target.value })}
-              placeholder="Nome do produto"
-            />
+            {showNovoProduto ? (
+              <div className="flex gap-2">
+                <Input
+                  id="novo_produto"
+                  value={novoProduto}
+                  onChange={(e) => setNovoProduto(e.target.value)}
+                  placeholder="Nome do novo produto"
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={async () => {
+                    if (novoProduto.trim()) {
+                      await addProduto.mutateAsync(novoProduto.trim());
+                      setFormData({ ...formData, produto: novoProduto.trim() });
+                      setNovoProduto('');
+                      setShowNovoProduto(false);
+                    }
+                  }}
+                  disabled={addProduto.isPending || !novoProduto.trim()}
+                >
+                  {addProduto.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setNovoProduto('');
+                    setShowNovoProduto(false);
+                  }}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Select
+                  value={formData.produto}
+                  onValueChange={(value) => setFormData({ ...formData, produto: value })}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Selecione o produto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {produtos.map((p) => (
+                      <SelectItem key={p.id} value={p.nome}>
+                        {p.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setShowNovoProduto(true)}
+                  title="Adicionar novo produto"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
