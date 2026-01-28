@@ -113,6 +113,11 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
           // If parcelas_pagas >= numeroParcela, then this parcel was paid
           const parcelaPaga = parcelasPagas >= numeroParcela;
 
+          // Check if client is in review for the selected month
+          const mesRevisaoCliente = cliente.mes_referencia_revisao;
+          const mesAnoAlvo = `${anoAlvo}-${String(mesAlvo + 1).padStart(2, '0')}`;
+          const estaEmRevisaoNoMes = cliente.em_revisao && mesRevisaoCliente === mesAnoAlvo;
+
           if (parcelaPaga) {
             // Already paid - show as normal
             dias[diaIndex].valor += valorParcela;
@@ -121,6 +126,9 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
             dias[diaIndex].valor += valorParcela;
           } else if (isMesAtual && diaVencimento >= hoje.getDate()) {
             // Current month but due date hasn't passed yet
+            dias[diaIndex].valor += valorParcela;
+          } else if (estaEmRevisaoNoMes) {
+            // Client is in review - show as pending (not overdue)
             dias[diaIndex].valor += valorParcela;
           } else {
             // Past due date and not paid - overdue
