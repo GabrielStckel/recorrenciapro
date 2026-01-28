@@ -7,6 +7,7 @@ import { ForecastChart } from '@/components/ForecastChart';
 import { ClientesAtrasados } from '@/components/ClientesAtrasados';
 import { PagamentosEmRevisao } from '@/components/PagamentosEmRevisao';
 import { MinhaEvolucao } from '@/components/MinhaEvolucao';
+import { FiltroPrevisaoFaturamento } from '@/components/FiltroPrevisaoFaturamento';
 import { DollarSign, TrendingUp, AlertTriangle, Clock, Loader2, Calendar, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import {
   Select,
@@ -205,12 +206,13 @@ export default function Dashboard() {
           <PagamentosEmRevisao clientes={clientesFiltrados} />
         )}
 
-        {/* Evolution Card + Chart */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-1">
+        {/* Evolution Card + Time Filter + Chart */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <div className="lg:col-span-1 space-y-6">
             <MinhaEvolucao totalRecebido={totalRecebido} hideValues={hideValues} />
+            <FiltroPrevisaoFaturamento clientes={clientesFiltrados} hideValues={hideValues} />
           </div>
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-4">
             <ForecastChart clientes={clientesFiltrados} hideValues={hideValues} />
           </div>
         </div>
