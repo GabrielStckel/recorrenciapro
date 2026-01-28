@@ -76,15 +76,26 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
     const isMesFuturo = new Date(anoAlvo, mesAlvo, 1) > new Date(hoje.getFullYear(), hoje.getMonth(), 1);
 
     // Initialize all days of the month
-    const dias: { nome: string; valor: number; valorAtrasado: number; valorEmRevisao: number; dia: number; isHoje: boolean }[] = [];
+    const dias: { 
+      nome: string; 
+      valor: number; 
+      valorPago: number;
+      valorAtrasado: number; 
+      valorEmRevisao: number; 
+      dia: number; 
+      isHoje: boolean;
+      clientesAReceber: number[]; // Individual client values for future pending payments
+    }[] = [];
     for (let d = 1; d <= ultimoDiaMes; d++) {
       dias.push({
         nome: d.toString().padStart(2, '0'),
         valor: 0,
+        valorPago: 0,
         valorAtrasado: 0,
         valorEmRevisao: 0,
         dia: d,
         isHoje: isMesAtual && d === hoje.getDate(),
+        clientesAReceber: [],
       });
     }
 
@@ -119,17 +130,21 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
           const mesAnoAlvo = `${anoAlvo}-${String(mesAlvo + 1).padStart(2, '0')}`;
           const estaEmRevisaoNoMes = cliente.em_revisao && mesRevisaoCliente === mesAnoAlvo;
 
+          const isDataFutura = isMesFuturo || (isMesAtual && diaVencimento > hoje.getDate());
+
           if (parcelaPaga) {
             // Already paid - show as paid (gray)
-            dias[diaIndex].valor += valorParcela;
+            dias[diaIndex].valorPago += valorParcela;
           } else if (estaEmRevisaoNoMes) {
             // Client is in review - show with warning color
             dias[diaIndex].valorEmRevisao += valorParcela;
-          } else if (isMesFuturo) {
-            // Future month - show as pending (blue)
+          } else if (isDataFutura) {
+            // Future date - show as pending (blue) and track individual clients
             dias[diaIndex].valor += valorParcela;
-          } else if (isMesAtual && diaVencimento >= hoje.getDate()) {
-            // Current month but due date hasn't passed yet - pending (blue)
+            dias[diaIndex].clientesAReceber.push(valorParcela);
+          } else if (isMesAtual && diaVencimento === hoje.getDate()) {
+            // Today - show with status colors (em revisão or pago), not as generic pending
+            // If not paid and not in review yet, it's still pending for today
             dias[diaIndex].valor += valorParcela;
           } else {
             // Past due date and not paid and not in review - overdue (red)
@@ -158,7 +173,8 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
     const dayData = dailyData.find(d => d.nome === label);
     if (!dayData) return null;
 
-    const total = dayData.valor + dayData.valorAtrasado + dayData.valorEmRevisao;
+    const total = dayData.valor + dayData.valorPago + dayData.valorAtrasado + dayData.valorEmRevisao;
+    const numClientes = dayData.clientesAReceber.length;
 
     return (
       <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
@@ -169,7 +185,13 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
           <>
             {dayData.valor > 0 && (
               <p className="text-sm text-muted-foreground">
-                Pago/A receber: {formatCurrency(dayData.valor)}
+                A receber: {formatCurrency(dayData.valor)}
+                {numClientes > 0 && ` (${numClientes} cliente${numClientes > 1 ? 's' : ''})`}
+              </p>
+            )}
+            {dayData.valorPago > 0 && (
+              <p className="text-sm text-muted-foreground">
+                Pago: {formatCurrency(dayData.valorPago)}
               </p>
             )}
             {dayData.valorEmRevisao > 0 && (
@@ -221,21 +243,79 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
   };
 
   // Calculate totals for daily view
-  const { totalDiario, totalAtrasado, totalEmRevisao } = useMemo(() => {
-    if (viewMode !== 'diario') return { totalDiario: 0, totalAtrasado: 0, totalEmRevisao: 0 };
+  const { totalDiario, totalAtrasado, totalEmRevisao, totalPago } = useMemo(() => {
+    if (viewMode !== 'diario') return { totalDiario: 0, totalAtrasado: 0, totalEmRevisao: 0, totalPago: 0 };
     
     let total = 0;
     let atrasado = 0;
     let emRevisao = 0;
+    let pago = 0;
     
     dailyData.forEach(d => {
-      total += d.valor + d.valorAtrasado + d.valorEmRevisao;
+      total += d.valor + d.valorPago + d.valorAtrasado + d.valorEmRevisao;
       atrasado += d.valorAtrasado;
       emRevisao += d.valorEmRevisao;
+      pago += d.valorPago;
     });
     
-    return { totalDiario: total, totalAtrasado: atrasado, totalEmRevisao: emRevisao };
+    return { totalDiario: total, totalAtrasado: atrasado, totalEmRevisao: emRevisao, totalPago: pago };
   }, [dailyData, viewMode]);
+
+  // Custom bar shape that shows separators between clients for future days
+  const CustomBarWithSeparators = (props: any) => {
+    const { x, y, width, height, payload } = props;
+    
+    if (!payload || !payload.clientesAReceber || payload.clientesAReceber.length <= 1 || height <= 0) {
+      // No separators needed - just render normal rectangle
+      return <rect x={x} y={y} width={width} height={height} fill="hsl(var(--info))" opacity={0.7} />;
+    }
+
+    const clientes = payload.clientesAReceber;
+    const total = clientes.reduce((sum: number, v: number) => sum + v, 0);
+    
+    if (total <= 0) {
+      return <rect x={x} y={y} width={width} height={height} fill="hsl(var(--info))" opacity={0.7} />;
+    }
+
+    // Render segments with separators
+    const segments: JSX.Element[] = [];
+    let currentY = y;
+    
+    clientes.forEach((valor: number, idx: number) => {
+      const segmentHeight = (valor / total) * height;
+      
+      segments.push(
+        <rect
+          key={`segment-${idx}`}
+          x={x}
+          y={currentY}
+          width={width}
+          height={Math.max(0, segmentHeight - (idx < clientes.length - 1 ? 1 : 0))}
+          fill="hsl(var(--info))"
+          opacity={0.7}
+        />
+      );
+      
+      // Add separator line between segments
+      if (idx < clientes.length - 1 && segmentHeight > 2) {
+        segments.push(
+          <line
+            key={`sep-${idx}`}
+            x1={x}
+            y1={currentY + segmentHeight}
+            x2={x + width}
+            y2={currentY + segmentHeight}
+            stroke="hsl(var(--background))"
+            strokeWidth={1}
+          />
+        );
+      }
+      
+      currentY += segmentHeight;
+    });
+
+    return <g>{segments}</g>;
+  };
 
   // Find today's index for the reference line
   const hoje = new Date();
@@ -355,33 +435,53 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
                     strokeDasharray="4 4"
                   />
                 )}
-                <Bar dataKey="valor" stackId="a" radius={[0, 0, 0, 0]}>
-                  {dailyData.map((entry, index) => {
+                <Bar dataKey="valorPago" stackId="a" radius={[0, 0, 0, 0]}>
+                  {dailyData.map((_, index) => (
+                    <Cell 
+                      key={`cell-pago-${index}`} 
+                      fill="hsl(var(--muted-foreground))" 
+                      opacity={0.5}
+                    />
+                  ))}
+                </Bar>
+                <Bar 
+                  dataKey="valor" 
+                  stackId="a" 
+                  radius={[0, 0, 0, 0]}
+                  shape={(props: any) => {
+                    const entry = dailyData[props.index];
+                    // For future days with multiple clients, use custom separator bar
+                    if (entry && entry.clientesAReceber && entry.clientesAReceber.length > 1) {
+                      return <CustomBarWithSeparators {...props} payload={entry} />;
+                    }
+                    // For today or past days, use normal bar with appropriate color
                     let fill = 'hsl(var(--info))';
                     let opacity = 0.7;
 
-                    if (entry.isHoje) {
-                      fill = 'hsl(var(--primary))';
-                      opacity = 1;
-                    } else if (entry.dia < new Date().getDate() && 
-                               selectedMonth.getMonth() === new Date().getMonth() && 
-                               selectedMonth.getFullYear() === new Date().getFullYear()) {
-                      fill = 'hsl(var(--muted-foreground))';
-                      opacity = 0.5;
-                    } else if (selectedMonth < new Date(new Date().getFullYear(), new Date().getMonth(), 1)) {
-                      fill = 'hsl(var(--muted-foreground))';
-                      opacity = 0.5;
+                    if (entry) {
+                      if (entry.dia < new Date().getDate() && 
+                          selectedMonth.getMonth() === new Date().getMonth() && 
+                          selectedMonth.getFullYear() === new Date().getFullYear()) {
+                        fill = 'hsl(var(--muted-foreground))';
+                        opacity = 0.5;
+                      } else if (selectedMonth < new Date(new Date().getFullYear(), new Date().getMonth(), 1)) {
+                        fill = 'hsl(var(--muted-foreground))';
+                        opacity = 0.5;
+                      }
                     }
 
                     return (
-                      <Cell 
-                        key={`cell-valor-${index}`} 
+                      <rect 
+                        x={props.x} 
+                        y={props.y} 
+                        width={props.width} 
+                        height={props.height} 
                         fill={fill} 
                         opacity={opacity}
                       />
                     );
-                  })}
-                </Bar>
+                  }}
+                />
                 <Bar dataKey="valorEmRevisao" stackId="a" radius={[0, 0, 0, 0]}>
                   {dailyData.map((_, index) => (
                     <Cell 
