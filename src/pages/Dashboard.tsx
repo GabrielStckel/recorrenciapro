@@ -6,7 +6,7 @@ import { ForecastChart } from '@/components/ForecastChart';
 import { ClientesAtrasados } from '@/components/ClientesAtrasados';
 import { PagamentosEmRevisao } from '@/components/PagamentosEmRevisao';
 import { MinhaEvolucao } from '@/components/MinhaEvolucao';
-import { DollarSign, TrendingUp, AlertTriangle, Clock, Loader2, Filter, Calendar, CheckCircle } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertTriangle, Clock, Loader2, Filter, Calendar, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -14,12 +14,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 
 export default function Dashboard() {
   const { clientes, isLoading, entrarEmRevisao } = useClientes();
   const [selectedProduto, setSelectedProduto] = useState<string>('Todos');
+  const [hideValues, setHideValues] = useState<boolean>(false);
 
   const formatCurrency = (value: number) => {
+    if (hideValues) return '••••••';
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
@@ -144,6 +147,15 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold">Dashboard</h1>
           
           <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setHideValues(!hideValues)}
+              className="h-9 w-9"
+              title={hideValues ? 'Mostrar valores' : 'Ocultar valores'}
+            >
+              {hideValues ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
             <Filter className="w-4 h-4 text-muted-foreground" />
             <Select value={selectedProduto} onValueChange={setSelectedProduto}>
               <SelectTrigger className="w-[200px]">
@@ -196,13 +208,13 @@ export default function Dashboard() {
         {/* Evolution Card */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-1">
-            <MinhaEvolucao totalRecebido={totalRecebido} />
+            <MinhaEvolucao totalRecebido={totalRecebido} hideValues={hideValues} />
           </div>
           <div className="lg:col-span-2">
-            <ForecastChart clientes={clientesFiltrados} />
+            <ForecastChart clientes={clientesFiltrados} hideValues={hideValues} />
           </div>
           <div className="lg:col-span-1">
-            <ClientesAtrasados clientes={clientesFiltrados} />
+            <ClientesAtrasados clientes={clientesFiltrados} hideValues={hideValues} />
           </div>
         </div>
       </div>
