@@ -20,41 +20,40 @@ export function ClientesAtrasados({ clientes, hideValues = false }: ClientesAtra
   };
 
   if (atrasados.length === 0) {
-    return (
-      <Card className="glass border-success/20">
-        <CardContent className="p-6 text-center">
-          <p className="text-success">✓ Nenhum cliente em atraso</p>
-        </CardContent>
-      </Card>
-    );
+    return null;
   }
 
   return (
-    <Card className="glass border-destructive/30">
+    <Card className="glass border-destructive/20">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2 text-destructive">
-          <AlertTriangle className="w-5 h-5" />
-          Clientes em Atraso ({atrasados.length})
+        <CardTitle className="text-base flex items-center gap-2 text-destructive">
+          <AlertTriangle className="w-4 h-4" />
+          Clientes em Atraso
+          <span className="ml-auto text-sm font-normal text-muted-foreground">
+            {atrasados.length} {atrasados.length === 1 ? 'cliente' : 'clientes'}
+          </span>
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
+      <CardContent className="pt-0">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {atrasados.map((cliente) => (
             <div
               key={cliente.id}
-              className="flex items-center justify-between p-3 rounded-lg bg-destructive/10 border border-destructive/20"
+              className="group glass-subtle p-4 rounded-xl border border-destructive/10 hover:border-destructive/30 transition-all duration-200"
             >
-              <div className="space-y-1">
-                <p className="font-medium text-foreground">{cliente.cliente_nome}</p>
-                <p className="text-sm text-muted-foreground">{cliente.produto}</p>
-              </div>
-              <div className="text-right space-y-1">
-                <Badge variant="destructive">
-                  {cliente.dias_em_atraso} dias
-                </Badge>
-                <p className="text-sm font-medium text-destructive">
-                  {formatCurrency(cliente.valor_parcela)}
-                </p>
+              <div className="flex items-start justify-between">
+                <div className="min-w-0 flex-1 pr-3">
+                  <p className="font-medium text-foreground truncate">{cliente.cliente_nome}</p>
+                  <p className="text-sm text-muted-foreground truncate">{cliente.produto}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <Badge variant="destructive" className="mb-1">
+                    {cliente.dias_em_atraso} dias
+                  </Badge>
+                  <p className="text-lg font-semibold text-foreground">
+                    {formatCurrency(cliente.valor_parcela)}
+                  </p>
+                </div>
               </div>
             </div>
           ))}
