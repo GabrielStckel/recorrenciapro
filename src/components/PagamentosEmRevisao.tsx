@@ -50,7 +50,7 @@ export function PagamentosEmRevisao({ clientes }: PagamentosEmRevisaoProps) {
           {emRevisao.map((cliente) => (
             <div
               key={cliente.id}
-              className="group glass-subtle p-4 rounded-xl border border-warning/10 hover:border-warning/30 transition-all duration-200"
+              className="group p-4 rounded-xl bg-warning/10 border border-warning/20 hover:border-warning/40 hover:bg-warning/15 transition-all duration-200"
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="min-w-0 flex-1 pr-3">
