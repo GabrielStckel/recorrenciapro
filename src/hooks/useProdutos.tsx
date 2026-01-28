@@ -27,9 +27,12 @@ export function useProdutos() {
 
   const addProduto = useMutation({
     mutationFn: async (nome: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
       const { data, error } = await supabase
         .from('produtos')
-        .insert({ nome: nome.trim() })
+        .insert({ nome: nome.trim(), user_id: user.id })
         .select()
         .single();
 
