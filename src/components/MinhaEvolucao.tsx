@@ -21,10 +21,12 @@ const premiacoes: Premiacao[] = [
 
 interface MinhaEvolucaoProps {
   totalRecebido: number;
+  hideValues?: boolean;
 }
 
-export function MinhaEvolucao({ totalRecebido }: MinhaEvolucaoProps) {
+export function MinhaEvolucao({ totalRecebido, hideValues = false }: MinhaEvolucaoProps) {
   const formatCurrency = (value: number) => {
+    if (hideValues) return '••••••';
     if (value >= 1000000) {
       return `R$ ${(value / 1000000).toFixed(1)}M`;
     }
@@ -35,6 +37,7 @@ export function MinhaEvolucao({ totalRecebido }: MinhaEvolucaoProps) {
   };
 
   const formatCurrencyFull = (value: number) => {
+    if (hideValues) return '••••••';
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 

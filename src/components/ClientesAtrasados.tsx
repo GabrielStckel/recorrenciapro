@@ -5,12 +5,14 @@ import { AlertTriangle } from 'lucide-react';
 
 interface ClientesAtrasadosProps {
   clientes: ClienteCalculado[];
+  hideValues?: boolean;
 }
 
-export function ClientesAtrasados({ clientes }: ClientesAtrasadosProps) {
+export function ClientesAtrasados({ clientes, hideValues = false }: ClientesAtrasadosProps) {
   const atrasados = clientes.filter((c) => c.status === 'Atrasado');
 
   const formatCurrency = (value: number) => {
+    if (hideValues) return '••••••';
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',

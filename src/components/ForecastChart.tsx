@@ -8,11 +8,12 @@ import { Calendar, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface ForecastChartProps {
   clientes: ClienteCalculado[];
+  hideValues?: boolean;
 }
 
 type ViewMode = 'mensal' | 'diario';
 
-export function ForecastChart({ clientes }: ForecastChartProps) {
+export function ForecastChart({ clientes, hideValues = false }: ForecastChartProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('mensal');
   const [selectedMonth, setSelectedMonth] = useState(() => new Date());
 
@@ -142,6 +143,7 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
   }, [clientes, selectedMonth]);
 
   const formatCurrency = (value: number) => {
+    if (hideValues) return '••••••';
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
