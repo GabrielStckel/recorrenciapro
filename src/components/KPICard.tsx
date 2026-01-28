@@ -26,7 +26,7 @@ export function KPICard({ title, value, icon: Icon, variant = 'default', subtitl
   };
 
   return (
-    <Card className={cn('glass transition-all hover:scale-[1.02]', variants[variant])}>
+    <Card className={cn('glass-strong transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/10', variants[variant])}>
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
