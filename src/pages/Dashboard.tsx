@@ -1,12 +1,13 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useClientes } from '@/hooks/useClientes';
+import { useHideValues } from '@/hooks/useHideValues';
 import { Layout } from '@/components/Layout';
 import { KPICard } from '@/components/KPICard';
 import { ForecastChart } from '@/components/ForecastChart';
 import { ClientesAtrasados } from '@/components/ClientesAtrasados';
 import { PagamentosEmRevisao } from '@/components/PagamentosEmRevisao';
 import { MinhaEvolucao } from '@/components/MinhaEvolucao';
-import { DollarSign, TrendingUp, AlertTriangle, Clock, Loader2, Filter, Calendar, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertTriangle, Clock, Loader2, Calendar, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -19,7 +20,7 @@ import { Button } from '@/components/ui/button';
 export default function Dashboard() {
   const { clientes, isLoading, entrarEmRevisao } = useClientes();
   const [selectedProduto, setSelectedProduto] = useState<string>('Todos');
-  const [hideValues, setHideValues] = useState<boolean>(false);
+  const { hideValues, toggleHideValues } = useHideValues();
 
   const formatCurrency = (value: number) => {
     if (hideValues) return '••••••';
@@ -150,7 +151,7 @@ export default function Dashboard() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setHideValues(!hideValues)}
+              onClick={toggleHideValues}
               className="h-9 w-9 text-muted-foreground hover:text-foreground"
               title={hideValues ? 'Mostrar valores' : 'Ocultar valores'}
             >
@@ -158,7 +159,6 @@ export default function Dashboard() {
             </Button>
             <Select value={selectedProduto} onValueChange={setSelectedProduto}>
               <SelectTrigger className="w-[200px]">
-                <Filter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Filtrar por produto" />
               </SelectTrigger>
               <SelectContent>
