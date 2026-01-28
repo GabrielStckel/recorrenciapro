@@ -28,6 +28,7 @@ interface ClientesTableProps {
   onEdit: (cliente: ClienteCalculado) => void;
   onHistory: (cliente: ClienteCalculado) => void;
   onMovimentos: (cliente: ClienteCalculado) => void;
+  hideValues?: boolean;
 }
 
 type StatusPagamentoFilter = 'todos' | 'em_dia' | 'em_revisao' | 'atrasado' | 'pagar_este_mes';
@@ -62,7 +63,7 @@ const statusConfig: Record<StatusCliente, { label: string; color: string; icon: 
   QUITADO: { label: 'Quitado', color: 'bg-info/20 text-info border-info/30', icon: CheckCircle },
 };
 
-export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: ClientesTableProps) {
+export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos, hideValues = false }: ClientesTableProps) {
   const [statusPagamentoFilter, setStatusPagamentoFilter] = useState<StatusPagamentoFilter>('todos');
   const [statusClienteFilter, setStatusClienteFilter] = useState<StatusClienteFilter>('todos');
   const [produtoFilter, setProdutoFilter] = useState<string>('todos');
@@ -72,6 +73,7 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos }: Cli
   const { produtos } = useProdutos();
 
   const formatCurrency = (value: number) => {
+    if (hideValues) return '••••••';
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
