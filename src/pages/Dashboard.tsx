@@ -146,19 +146,19 @@ export default function Dashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h1 className="text-2xl font-bold">Dashboard</h1>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setHideValues(!hideValues)}
-              className="h-9 w-9"
+              className="h-9 w-9 text-muted-foreground hover:text-foreground"
               title={hideValues ? 'Mostrar valores' : 'Ocultar valores'}
             >
-              {hideValues ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {hideValues ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
             </Button>
-            <Filter className="w-4 h-4 text-muted-foreground" />
             <Select value={selectedProduto} onValueChange={setSelectedProduto}>
               <SelectTrigger className="w-[200px]">
+                <Filter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Filtrar por produto" />
               </SelectTrigger>
               <SelectContent>
