@@ -75,12 +75,13 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
     const isMesFuturo = new Date(anoAlvo, mesAlvo, 1) > new Date(hoje.getFullYear(), hoje.getMonth(), 1);
 
     // Initialize all days of the month
-    const dias: { nome: string; valor: number; valorAtrasado: number; dia: number; isHoje: boolean }[] = [];
+    const dias: { nome: string; valor: number; valorAtrasado: number; valorEmRevisao: number; dia: number; isHoje: boolean }[] = [];
     for (let d = 1; d <= ultimoDiaMes; d++) {
       dias.push({
         nome: d.toString().padStart(2, '0'),
         valor: 0,
         valorAtrasado: 0,
+        valorEmRevisao: 0,
         dia: d,
         isHoje: isMesAtual && d === hoje.getDate(),
       });
@@ -110,7 +111,6 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
 
         if (diaIndex >= 0 && diaIndex < dias.length) {
           // Check if this specific parcel was already paid
-          // If parcelas_pagas >= numeroParcela, then this parcel was paid
           const parcelaPaga = parcelasPagas >= numeroParcela;
 
           // Check if client is in review for the selected month
@@ -119,19 +119,19 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
           const estaEmRevisaoNoMes = cliente.em_revisao && mesRevisaoCliente === mesAnoAlvo;
 
           if (parcelaPaga) {
-            // Already paid - show as normal
-            dias[diaIndex].valor += valorParcela;
-          } else if (isMesFuturo) {
-            // Future month - show as pending
-            dias[diaIndex].valor += valorParcela;
-          } else if (isMesAtual && diaVencimento >= hoje.getDate()) {
-            // Current month but due date hasn't passed yet
+            // Already paid - show as paid (gray)
             dias[diaIndex].valor += valorParcela;
           } else if (estaEmRevisaoNoMes) {
-            // Client is in review - show as pending (not overdue)
+            // Client is in review - show with warning color
+            dias[diaIndex].valorEmRevisao += valorParcela;
+          } else if (isMesFuturo) {
+            // Future month - show as pending (blue)
+            dias[diaIndex].valor += valorParcela;
+          } else if (isMesAtual && diaVencimento >= hoje.getDate()) {
+            // Current month but due date hasn't passed yet - pending (blue)
             dias[diaIndex].valor += valorParcela;
           } else {
-            // Past due date and not paid - overdue
+            // Past due date and not paid and not in review - overdue (red)
             dias[diaIndex].valorAtrasado += valorParcela;
           }
         }
@@ -156,7 +156,7 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
     const dayData = dailyData.find(d => d.nome === label);
     if (!dayData) return null;
 
-    const total = dayData.valor + dayData.valorAtrasado;
+    const total = dayData.valor + dayData.valorAtrasado + dayData.valorEmRevisao;
 
     return (
       <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
@@ -168,6 +168,11 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
             {dayData.valor > 0 && (
               <p className="text-sm text-muted-foreground">
                 Pago/A receber: {formatCurrency(dayData.valor)}
+              </p>
+            )}
+            {dayData.valorEmRevisao > 0 && (
+              <p className="text-sm text-warning">
+                Em revisão: {formatCurrency(dayData.valorEmRevisao)}
               </p>
             )}
             {dayData.valorAtrasado > 0 && (
@@ -214,18 +219,20 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
   };
 
   // Calculate totals for daily view
-  const { totalDiario, totalAtrasado } = useMemo(() => {
-    if (viewMode !== 'diario') return { totalDiario: 0, totalAtrasado: 0 };
+  const { totalDiario, totalAtrasado, totalEmRevisao } = useMemo(() => {
+    if (viewMode !== 'diario') return { totalDiario: 0, totalAtrasado: 0, totalEmRevisao: 0 };
     
     let total = 0;
     let atrasado = 0;
+    let emRevisao = 0;
     
     dailyData.forEach(d => {
-      total += d.valor + d.valorAtrasado;
+      total += d.valor + d.valorAtrasado + d.valorEmRevisao;
       atrasado += d.valorAtrasado;
+      emRevisao += d.valorEmRevisao;
     });
     
-    return { totalDiario: total, totalAtrasado: atrasado };
+    return { totalDiario: total, totalAtrasado: atrasado, totalEmRevisao: emRevisao };
   }, [dailyData, viewMode]);
 
   // Find today's index for the reference line
@@ -373,6 +380,15 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
                     );
                   })}
                 </Bar>
+                <Bar dataKey="valorEmRevisao" stackId="a" radius={[0, 0, 0, 0]}>
+                  {dailyData.map((_, index) => (
+                    <Cell 
+                      key={`cell-revisao-${index}`} 
+                      fill="hsl(var(--warning))" 
+                      opacity={1}
+                    />
+                  ))}
+                </Bar>
                 <Bar dataKey="valorAtrasado" stackId="a" radius={[4, 4, 0, 0]}>
                   {dailyData.map((_, index) => (
                     <Cell 
@@ -396,6 +412,12 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
               <div className="w-3 h-3 rounded-sm bg-info opacity-70" />
               <span className="text-muted-foreground">A receber</span>
             </div>
+            {totalEmRevisao > 0 && (
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-sm bg-warning" />
+                <span className="text-muted-foreground">Em revisão ({formatCurrency(totalEmRevisao)})</span>
+              </div>
+            )}
             {totalAtrasado > 0 && (
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded-sm bg-destructive" />
