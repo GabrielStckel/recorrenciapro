@@ -12,27 +12,6 @@ interface ForecastChartProps {
 
 type ViewMode = 'mensal' | 'diario';
 
-interface ClienteSegmento {
-  clienteId: string;
-  clienteNome: string;
-  valor: number;
-  status: 'pago' | 'atrasado' | 'pendente';
-}
-
-interface DiaData {
-  nome: string;
-  dia: number;
-  isHoje: boolean;
-  clientes: ClienteSegmento[];
-  [key: string]: any; // Dynamic keys for each client
-}
-
-// Generate distinct colors for clients
-const generateColor = (index: number, total: number) => {
-  const hue = (index * 360 / Math.max(total, 8)) % 360;
-  return `hsl(${hue}, 65%, 55%)`;
-};
-
 export function ForecastChart({ clientes }: ForecastChartProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('mensal');
   const [selectedMonth, setSelectedMonth] = useState(() => new Date());
@@ -85,132 +64,73 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
     return meses;
   }, [clientes]);
 
-  // Daily forecast data for selected month with client segments
-  const { dailyData, clienteKeys, clienteColors } = useMemo(() => {
+  // Daily forecast data for selected month
+  const dailyData = useMemo(() => {
     const hoje = new Date();
     const mesAlvo = selectedMonth.getMonth();
     const anoAlvo = selectedMonth.getFullYear();
     const ultimoDiaMes = new Date(anoAlvo, mesAlvo + 1, 0).getDate();
 
     const isMesAtual = mesAlvo === hoje.getMonth() && anoAlvo === hoje.getFullYear();
-    const isMesPassado = new Date(anoAlvo, mesAlvo, 1) < new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-
-    // Collect all clients that have payments in this month
-    const clientesNoMes: Map<string, { nome: string; color: string }> = new Map();
-    
-    // First pass: identify all clients with due dates in this month
-    clientes.forEach((cliente) => {
-      if (cliente.status_cliente !== 'ATIVO') return;
-
-      const [year, month] = cliente.data_inicio.split('-').map(Number);
-      const dataInicio = new Date(year, month - 1, 1);
-
-      const getDueDate = (y: number, m: number) => {
-        const lastDay = new Date(y, m + 1, 0).getDate();
-        return Math.min(cliente.dia_vencimento, lastDay);
-      };
-
-      const primeiroPagamentoMes = dataInicio.getMonth();
-      const primeiroPagamentoAno = dataInicio.getFullYear();
-      const mesesDesdeInicio = (anoAlvo - primeiroPagamentoAno) * 12 + (mesAlvo - primeiroPagamentoMes);
-
-      if (mesesDesdeInicio >= 0 && mesesDesdeInicio < cliente.total_parcelas) {
-        clientesNoMes.set(cliente.id, { nome: cliente.cliente_nome, color: '' });
-      }
-    });
-
-    // Assign colors to clients
-    const clienteArray = Array.from(clientesNoMes.entries());
-    clienteArray.forEach(([id, data], index) => {
-      data.color = generateColor(index, clienteArray.length);
-    });
+    const isMesFuturo = new Date(anoAlvo, mesAlvo, 1) > new Date(hoje.getFullYear(), hoje.getMonth(), 1);
 
     // Initialize all days of the month
-    const dias: DiaData[] = [];
+    const dias: { nome: string; valor: number; valorAtrasado: number; dia: number; isHoje: boolean }[] = [];
     for (let d = 1; d <= ultimoDiaMes; d++) {
-      const isHoje = isMesAtual && d === hoje.getDate();
-      
-      const diaData: DiaData = {
+      dias.push({
         nome: d.toString().padStart(2, '0'),
+        valor: 0,
+        valorAtrasado: 0,
         dia: d,
-        isHoje,
-        clientes: [],
-      };
-
-      // Initialize all client keys to 0
-      clientesNoMes.forEach((_, clienteId) => {
-        diaData[`cliente_${clienteId}`] = 0;
-        diaData[`cliente_${clienteId}_atrasado`] = 0;
+        isHoje: isMesAtual && d === hoje.getDate(),
       });
-
-      dias.push(diaData);
     }
 
-    // Second pass: assign values to days
+    // Calculate expected payments per day
     clientes.forEach((cliente) => {
       if (cliente.status_cliente !== 'ATIVO') return;
-      if (!clientesNoMes.has(cliente.id)) return;
 
       const valorParcela = cliente.valor_parcela;
+      const totalParcelas = cliente.total_parcelas;
+      const parcelasPagas = cliente.parcelas_pagas;
+
+      // Parse data_inicio
       const [year, month] = cliente.data_inicio.split('-').map(Number);
-      const dataInicio = new Date(year, month - 1, 1);
+      const primeiroPagamentoMes = month - 1; // 0-indexed
+      const primeiroPagamentoAno = year;
 
-      const getDueDateForMonth = (y: number, m: number) => {
-        const lastDay = new Date(y, m + 1, 0).getDate();
-        return Math.min(cliente.dia_vencimento, lastDay);
-      };
-
-      const primeiroPagamentoMes = dataInicio.getMonth();
-      const primeiroPagamentoAno = dataInicio.getFullYear();
+      // Calculate which parcel number would be due in the selected month (1-indexed)
       const mesesDesdeInicio = (anoAlvo - primeiroPagamentoAno) * 12 + (mesAlvo - primeiroPagamentoMes);
+      const numeroParcela = mesesDesdeInicio + 1; // Parcel number (1-indexed)
 
-      if (mesesDesdeInicio >= 0 && mesesDesdeInicio < cliente.total_parcelas) {
-        const diaVencimento = getDueDateForMonth(anoAlvo, mesAlvo);
+      // Only include if this month falls within the contract period
+      if (numeroParcela >= 1 && numeroParcela <= totalParcelas) {
+        const diaVencimento = Math.min(cliente.dia_vencimento, ultimoDiaMes);
         const diaIndex = diaVencimento - 1;
 
         if (diaIndex >= 0 && diaIndex < dias.length) {
-          // Check if client already paid this month
-          const pagouNesteMes = cliente.data_ultimo_pagamento 
-            ? (() => {
-                const [ano, mes] = cliente.data_ultimo_pagamento.split('-').map(Number);
-                return ano === anoAlvo && mes - 1 === mesAlvo;
-              })()
-            : false;
+          // Check if this specific parcel was already paid
+          // If parcelas_pagas >= numeroParcela, then this parcel was paid
+          const parcelaPaga = parcelasPagas >= numeroParcela;
 
-          let status: 'pago' | 'atrasado' | 'pendente' = 'pendente';
-          
-          if (pagouNesteMes) {
-            status = 'pago';
-            dias[diaIndex][`cliente_${cliente.id}`] = valorParcela;
-          } else if ((isMesAtual && diaVencimento < hoje.getDate()) || isMesPassado) {
-            status = 'atrasado';
-            dias[diaIndex][`cliente_${cliente.id}_atrasado`] = valorParcela;
+          if (parcelaPaga) {
+            // Already paid - show as normal
+            dias[diaIndex].valor += valorParcela;
+          } else if (isMesFuturo) {
+            // Future month - show as pending
+            dias[diaIndex].valor += valorParcela;
+          } else if (isMesAtual && diaVencimento >= hoje.getDate()) {
+            // Current month but due date hasn't passed yet
+            dias[diaIndex].valor += valorParcela;
           } else {
-            dias[diaIndex][`cliente_${cliente.id}`] = valorParcela;
+            // Past due date and not paid - overdue
+            dias[diaIndex].valorAtrasado += valorParcela;
           }
-
-          dias[diaIndex].clientes.push({
-            clienteId: cliente.id,
-            clienteNome: cliente.cliente_nome,
-            valor: valorParcela,
-            status,
-          });
         }
       }
     });
 
-    // Build keys for rendering bars
-    const keys: string[] = [];
-    const colors: Map<string, string> = new Map();
-
-    clientesNoMes.forEach((data, clienteId) => {
-      keys.push(`cliente_${clienteId}`);
-      keys.push(`cliente_${clienteId}_atrasado`);
-      colors.set(`cliente_${clienteId}`, data.color);
-      colors.set(`cliente_${clienteId}_atrasado`, 'hsl(var(--destructive))');
-    });
-
-    return { dailyData: dias, clienteKeys: keys, clienteColors: colors };
+    return dias;
   }, [clientes, selectedMonth]);
 
   const formatCurrency = (value: number) => {
@@ -225,42 +145,32 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
   const DailyTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
 
-    // Find the day data
     const dayData = dailyData.find(d => d.nome === label);
     if (!dayData) return null;
 
-    const total = dayData.clientes.reduce((acc, c) => acc + c.valor, 0);
+    const total = dayData.valor + dayData.valorAtrasado;
 
     return (
-      <div className="bg-card border border-border rounded-lg p-3 shadow-lg max-w-[250px]">
-        <p className="text-sm font-medium text-foreground mb-2">
+      <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
+        <p className="text-sm font-medium text-foreground mb-1">
           Dia {label} {dayData.isHoje && <span className="text-primary">(Hoje)</span>}
         </p>
-        {dayData.clientes.length > 0 ? (
-          <div className="space-y-1.5">
-            {dayData.clientes.map((c, i) => (
-              <div key={c.clienteId} className="flex justify-between items-center gap-3 text-xs">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <div 
-                    className="w-2.5 h-2.5 rounded-sm shrink-0" 
-                    style={{ 
-                      backgroundColor: c.status === 'atrasado' 
-                        ? 'hsl(var(--destructive))' 
-                        : clienteColors.get(`cliente_${c.clienteId}`) 
-                    }} 
-                  />
-                  <span className="truncate text-muted-foreground">{c.clienteNome}</span>
-                </div>
-                <span className={`font-medium shrink-0 ${c.status === 'atrasado' ? 'text-destructive' : ''}`}>
-                  {formatCurrency(c.valor)}
-                </span>
-              </div>
-            ))}
-            <div className="border-t border-border pt-1.5 mt-1.5 flex justify-between">
-              <span className="text-xs font-medium">Total</span>
-              <span className="text-sm font-bold text-primary">{formatCurrency(total)}</span>
-            </div>
-          </div>
+        {total > 0 ? (
+          <>
+            {dayData.valor > 0 && (
+              <p className="text-sm text-muted-foreground">
+                Pago/A receber: {formatCurrency(dayData.valor)}
+              </p>
+            )}
+            {dayData.valorAtrasado > 0 && (
+              <p className="text-sm text-destructive">
+                Atrasado: {formatCurrency(dayData.valorAtrasado)}
+              </p>
+            )}
+            <p className="text-lg font-bold text-primary mt-1">
+              Total: {formatCurrency(total)}
+            </p>
+          </>
         ) : (
           <p className="text-xs text-muted-foreground">Nenhum vencimento</p>
         )}
@@ -303,12 +213,8 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
     let atrasado = 0;
     
     dailyData.forEach(d => {
-      d.clientes.forEach(c => {
-        total += c.valor;
-        if (c.status === 'atrasado') {
-          atrasado += c.valor;
-        }
-      });
+      total += d.valor + d.valorAtrasado;
+      atrasado += d.valorAtrasado;
     });
     
     return { totalDiario: total, totalAtrasado: atrasado };
@@ -432,20 +338,42 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
                     strokeDasharray="4 4"
                   />
                 )}
-                {clienteKeys.map((key) => {
-                  const isAtrasado = key.endsWith('_atrasado');
-                  const color = clienteColors.get(key) || 'hsl(var(--info))';
-                  
-                  return (
-                    <Bar 
-                      key={key} 
-                      dataKey={key} 
-                      stackId="clientes" 
-                      fill={color}
-                      radius={[0, 0, 0, 0]}
+                <Bar dataKey="valor" stackId="a" radius={[0, 0, 0, 0]}>
+                  {dailyData.map((entry, index) => {
+                    let fill = 'hsl(var(--info))';
+                    let opacity = 0.7;
+
+                    if (entry.isHoje) {
+                      fill = 'hsl(var(--primary))';
+                      opacity = 1;
+                    } else if (entry.dia < new Date().getDate() && 
+                               selectedMonth.getMonth() === new Date().getMonth() && 
+                               selectedMonth.getFullYear() === new Date().getFullYear()) {
+                      fill = 'hsl(var(--muted-foreground))';
+                      opacity = 0.5;
+                    } else if (selectedMonth < new Date(new Date().getFullYear(), new Date().getMonth(), 1)) {
+                      fill = 'hsl(var(--muted-foreground))';
+                      opacity = 0.5;
+                    }
+
+                    return (
+                      <Cell 
+                        key={`cell-valor-${index}`} 
+                        fill={fill} 
+                        opacity={opacity}
+                      />
+                    );
+                  })}
+                </Bar>
+                <Bar dataKey="valorAtrasado" stackId="a" radius={[4, 4, 0, 0]}>
+                  {dailyData.map((_, index) => (
+                    <Cell 
+                      key={`cell-atrasado-${index}`} 
+                      fill="hsl(var(--destructive))" 
+                      opacity={1}
                     />
-                  );
-                })}
+                  ))}
+                </Bar>
               </BarChart>
             )}
           </ResponsiveContainer>
@@ -456,6 +384,10 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
               <div className="w-4 h-0.5 bg-primary" style={{ borderTop: '2px dashed hsl(var(--primary))' }} />
               <span className="text-muted-foreground">Hoje</span>
             </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-info opacity-70" />
+              <span className="text-muted-foreground">A receber</span>
+            </div>
             {totalAtrasado > 0 && (
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded-sm bg-destructive" />
@@ -463,8 +395,8 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
               </div>
             )}
             <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm" style={{ background: 'linear-gradient(135deg, hsl(200, 65%, 55%) 0%, hsl(280, 65%, 55%) 100%)' }} />
-              <span className="text-muted-foreground">Clientes ({dailyData.reduce((acc, d) => acc + d.clientes.length, 0)} no mês)</span>
+              <div className="w-3 h-3 rounded-sm bg-muted-foreground opacity-50" />
+              <span className="text-muted-foreground">Pago</span>
             </div>
           </div>
         )}
