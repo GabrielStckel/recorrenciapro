@@ -12,10 +12,10 @@ interface KPICardProps {
 
 export function KPICard({ title, value, icon: Icon, variant = 'default', subtitle }: KPICardProps) {
   const variants = {
-    default: '',
-    success: 'border-success/30 shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_20px_-5px_hsl(142_76%_45%/0.3)]',
-    warning: 'border-warning/30 shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_20px_-5px_hsl(38_92%_50%/0.3)]',
-    destructive: 'border-destructive/30 shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_20px_-5px_hsl(0_72%_55%/0.3)]',
+    default: 'bg-card',
+    success: 'bg-success/10 border-success/20',
+    warning: 'bg-warning/10 border-warning/20',
+    destructive: 'bg-destructive/10 border-destructive/20',
   };
 
   const iconVariants = {
@@ -26,7 +26,7 @@ export function KPICard({ title, value, icon: Icon, variant = 'default', subtitl
   };
 
   return (
-    <Card className={cn('transition-all duration-300 hover:scale-[1.02] hover:border-white/20', variants[variant])}>
+    <Card className={cn('glass transition-all hover:scale-[1.02]', variants[variant])}>
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
