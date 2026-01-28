@@ -39,7 +39,7 @@ export function ClientesAtrasados({ clientes, hideValues = false }: ClientesAtra
           {atrasados.map((cliente) => (
             <div
               key={cliente.id}
-              className="group glass-subtle p-4 rounded-xl border border-destructive/10 hover:border-destructive/30 transition-all duration-200"
+              className="group p-4 rounded-xl bg-destructive/10 border border-destructive/20 hover:border-destructive/40 hover:bg-destructive/15 transition-all duration-200"
             >
               <div className="flex items-start justify-between">
                 <div className="min-w-0 flex-1 pr-3">
