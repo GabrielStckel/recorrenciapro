@@ -417,13 +417,13 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
             {totalEmRevisao > 0 && (
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded-sm bg-warning" />
-                <span className="text-muted-foreground">Em revisão ({formatCurrency(totalEmRevisao)})</span>
+                <span className="text-muted-foreground">Em revisão</span>
               </div>
             )}
             {totalAtrasado > 0 && (
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded-sm bg-destructive" />
-                <span className="text-muted-foreground">Atrasado ({formatCurrency(totalAtrasado)})</span>
+                <span className="text-muted-foreground">Atrasado</span>
               </div>
             )}
             <div className="flex items-center gap-1.5">
