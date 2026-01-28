@@ -85,6 +85,7 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
       dia: number; 
       isHoje: boolean;
       clientesAReceber: number[]; // Individual client values for future pending payments
+      clientesPagos: number[]; // Individual client values for paid payments
     }[] = [];
     for (let d = 1; d <= ultimoDiaMes; d++) {
       dias.push({
@@ -96,6 +97,7 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
         dia: d,
         isHoje: isMesAtual && d === hoje.getDate(),
         clientesAReceber: [],
+        clientesPagos: [],
       });
     }
 
@@ -133,8 +135,9 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
           const isDataFutura = isMesFuturo || (isMesAtual && diaVencimento > hoje.getDate());
 
           if (parcelaPaga) {
-            // Already paid - show as paid (gray)
+            // Already paid - show as paid (gray) and track individual clients
             dias[diaIndex].valorPago += valorParcela;
+            dias[diaIndex].clientesPagos.push(valorParcela);
           } else if (estaEmRevisaoNoMes) {
             // Client is in review - show with warning color
             dias[diaIndex].valorEmRevisao += valorParcela;
@@ -261,27 +264,28 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
     return { totalDiario: total, totalAtrasado: atrasado, totalEmRevisao: emRevisao, totalPago: pago };
   }, [dailyData, viewMode]);
 
-  // Custom bar shape that shows separators between clients for future days
-  const CustomBarWithSeparators = (props: any) => {
-    const { x, y, width, height, payload } = props;
+  // Custom bar shape that shows separators between clients
+  const createBarWithSeparators = (fill: string, opacity: number) => (props: any) => {
+    const { x, y, width, height, payload, dataKey } = props;
     
-    if (!payload || !payload.clientesAReceber || payload.clientesAReceber.length <= 1 || height <= 0) {
+    const clientesArray = dataKey === 'valorPago' ? payload?.clientesPagos : payload?.clientesAReceber;
+    
+    if (!clientesArray || clientesArray.length <= 1 || height <= 0) {
       // No separators needed - just render normal rectangle
-      return <rect x={x} y={y} width={width} height={height} fill="hsl(var(--info))" opacity={0.7} />;
+      return <rect x={x} y={y} width={width} height={height} fill={fill} opacity={opacity} />;
     }
 
-    const clientes = payload.clientesAReceber;
-    const total = clientes.reduce((sum: number, v: number) => sum + v, 0);
+    const total = clientesArray.reduce((sum: number, v: number) => sum + v, 0);
     
     if (total <= 0) {
-      return <rect x={x} y={y} width={width} height={height} fill="hsl(var(--info))" opacity={0.7} />;
+      return <rect x={x} y={y} width={width} height={height} fill={fill} opacity={opacity} />;
     }
 
     // Render segments with separators
     const segments: JSX.Element[] = [];
     let currentY = y;
     
-    clientes.forEach((valor: number, idx: number) => {
+    clientesArray.forEach((valor: number, idx: number) => {
       const segmentHeight = (valor / total) * height;
       
       segments.push(
@@ -290,14 +294,14 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
           x={x}
           y={currentY}
           width={width}
-          height={Math.max(0, segmentHeight - (idx < clientes.length - 1 ? 1 : 0))}
-          fill="hsl(var(--info))"
-          opacity={0.7}
+          height={Math.max(0, segmentHeight - (idx < clientesArray.length - 1 ? 1 : 0))}
+          fill={fill}
+          opacity={opacity}
         />
       );
       
-      // Add separator line between segments
-      if (idx < clientes.length - 1 && segmentHeight > 2) {
+      // Add separator line between segments (white color)
+      if (idx < clientesArray.length - 1 && segmentHeight > 2) {
         segments.push(
           <line
             key={`sep-${idx}`}
@@ -305,7 +309,7 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
             y1={currentY + segmentHeight}
             x2={x + width}
             y2={currentY + segmentHeight}
-            stroke="hsl(var(--background))"
+            stroke="white"
             strokeWidth={1}
           />
         );
@@ -435,52 +439,17 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
                     strokeDasharray="4 4"
                   />
                 )}
-                <Bar dataKey="valorPago" stackId="a" radius={[0, 0, 0, 0]}>
-                  {dailyData.map((_, index) => (
-                    <Cell 
-                      key={`cell-pago-${index}`} 
-                      fill="hsl(var(--muted-foreground))" 
-                      opacity={0.5}
-                    />
-                  ))}
-                </Bar>
+                <Bar 
+                  dataKey="valorPago" 
+                  stackId="a" 
+                  radius={[0, 0, 0, 0]}
+                  shape={createBarWithSeparators('hsl(var(--muted-foreground))', 0.5)}
+                />
                 <Bar 
                   dataKey="valor" 
                   stackId="a" 
                   radius={[0, 0, 0, 0]}
-                  shape={(props: any) => {
-                    const entry = dailyData[props.index];
-                    // For future days with multiple clients, use custom separator bar
-                    if (entry && entry.clientesAReceber && entry.clientesAReceber.length > 1) {
-                      return <CustomBarWithSeparators {...props} payload={entry} />;
-                    }
-                    // For today or past days, use normal bar with appropriate color
-                    let fill = 'hsl(var(--info))';
-                    let opacity = 0.7;
-
-                    if (entry) {
-                      if (entry.dia < new Date().getDate() && 
-                          selectedMonth.getMonth() === new Date().getMonth() && 
-                          selectedMonth.getFullYear() === new Date().getFullYear()) {
-                        fill = 'hsl(var(--muted-foreground))';
-                        opacity = 0.5;
-                      } else if (selectedMonth < new Date(new Date().getFullYear(), new Date().getMonth(), 1)) {
-                        fill = 'hsl(var(--muted-foreground))';
-                        opacity = 0.5;
-                      }
-                    }
-
-                    return (
-                      <rect 
-                        x={props.x} 
-                        y={props.y} 
-                        width={props.width} 
-                        height={props.height} 
-                        fill={fill} 
-                        opacity={opacity}
-                      />
-                    );
-                  }}
+                  shape={createBarWithSeparators('hsl(var(--info))', 0.7)}
                 />
                 <Bar dataKey="valorEmRevisao" stackId="a" radius={[0, 0, 0, 0]}>
                   {dailyData.map((_, index) => (
