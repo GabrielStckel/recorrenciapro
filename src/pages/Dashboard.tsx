@@ -205,18 +205,18 @@ export default function Dashboard() {
           <PagamentosEmRevisao clientes={clientesFiltrados} />
         )}
 
-        {/* Evolution Card */}
+        {/* Evolution Card + Chart */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-1">
             <MinhaEvolucao totalRecebido={totalRecebido} hideValues={hideValues} />
           </div>
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-3">
             <ForecastChart clientes={clientesFiltrados} hideValues={hideValues} />
           </div>
-          <div className="lg:col-span-1">
-            <ClientesAtrasados clientes={clientesFiltrados} hideValues={hideValues} />
-          </div>
         </div>
+
+        {/* Clientes Atrasados - abaixo do gráfico */}
+        <ClientesAtrasados clientes={clientesFiltrados} hideValues={hideValues} />
       </div>
     </Layout>
   );
