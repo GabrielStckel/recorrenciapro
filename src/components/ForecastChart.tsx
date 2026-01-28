@@ -75,9 +75,9 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
     const isMesPassado = new Date(anoAlvo, mesAlvo, 1) < new Date(hoje.getFullYear(), hoje.getMonth(), 1);
 
     // Initialize all days of the month
-    const dias: { nome: string; valor: number; dia: number; passado: boolean; hoje: boolean; status: 'futuro' | 'hoje' | 'passado' | 'atrasado' }[] = [];
+    const dias: { nome: string; valor: number; valorAtrasado: number; dia: number; status: 'futuro' | 'hoje' | 'passado' }[] = [];
     for (let d = 1; d <= ultimoDiaMes; d++) {
-      let status: 'futuro' | 'hoje' | 'passado' | 'atrasado' = 'futuro';
+      let status: 'futuro' | 'hoje' | 'passado' = 'futuro';
       
       if (isMesPassado) {
         status = 'passado';
@@ -92,14 +92,13 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
       dias.push({
         nome: d.toString().padStart(2, '0'),
         valor: 0,
+        valorAtrasado: 0,
         dia: d,
-        passado: status === 'passado',
-        hoje: status === 'hoje',
         status,
       });
     }
 
-    // Calculate expected payments per day based on contract (not payment status)
+    // Calculate expected payments per day based on contract
     clientes.forEach((cliente) => {
       if (cliente.status_cliente !== 'ATIVO') return;
 
@@ -129,21 +128,26 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
         const diaIndex = diaVencimento - 1;
 
         if (diaIndex >= 0 && diaIndex < dias.length) {
-          dias[diaIndex].valor += valorParcela;
+          // Check if client already paid this month
+          const pagouNesteMes = cliente.data_ultimo_pagamento 
+            ? (() => {
+                const [ano, mes] = cliente.data_ultimo_pagamento.split('-').map(Number);
+                return ano === anoAlvo && mes - 1 === mesAlvo;
+              })()
+            : false;
 
-          // Mark as overdue if payment is past due and not paid
-          if (isMesAtual && diaVencimento < hoje.getDate()) {
-            // Check if client paid this month
-            const pagouNesteMes = cliente.data_ultimo_pagamento 
-              ? (() => {
-                  const [ano, mes] = cliente.data_ultimo_pagamento.split('-').map(Number);
-                  return ano === anoAlvo && mes - 1 === mesAlvo;
-                })()
-              : false;
-
-            if (!pagouNesteMes) {
-              dias[diaIndex].status = 'atrasado';
-            }
+          if (pagouNesteMes) {
+            // Already paid - show as normal (gray for past)
+            dias[diaIndex].valor += valorParcela;
+          } else if (isMesAtual && diaVencimento < hoje.getDate()) {
+            // Overdue - payment due date passed and not paid
+            dias[diaIndex].valorAtrasado += valorParcela;
+          } else if (isMesPassado) {
+            // Past month and not paid - overdue
+            dias[diaIndex].valorAtrasado += valorParcela;
+          } else {
+            // Future payment
+            dias[diaIndex].valor += valorParcela;
           }
         }
       }
@@ -164,14 +168,35 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const isDaily = viewMode === 'diario';
+      const total = payload.reduce((acc: number, p: any) => acc + (p.value || 0), 0);
+      const hasAtrasado = payload.find((p: any) => p.dataKey === 'valorAtrasado' && p.value > 0);
+      const hasValor = payload.find((p: any) => p.dataKey === 'valor' && p.value > 0);
+      
       return (
         <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
-          <p className="text-sm font-medium text-foreground">
+          <p className="text-sm font-medium text-foreground mb-1">
             {isDaily ? `Dia ${label}` : label}
           </p>
-          <p className="text-lg font-bold text-primary">
-            {formatCurrency(payload[0].value)}
-          </p>
+          {isDaily && hasValor && (
+            <p className="text-sm text-muted-foreground">
+              Pago/A receber: {formatCurrency(hasValor.value)}
+            </p>
+          )}
+          {isDaily && hasAtrasado && (
+            <p className="text-sm text-destructive">
+              Atrasado: {formatCurrency(hasAtrasado.value)}
+            </p>
+          )}
+          {(!isDaily || payload.length === 1) && (
+            <p className="text-lg font-bold text-primary">
+              {formatCurrency(total)}
+            </p>
+          )}
+          {isDaily && payload.length > 1 && (
+            <p className="text-lg font-bold text-primary mt-1">
+              Total: {formatCurrency(total)}
+            </p>
+          )}
         </div>
       );
     }
@@ -193,10 +218,13 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
     });
   };
 
-  // Calculate total for daily view
-  const totalDiario = useMemo(() => {
-    if (viewMode !== 'diario') return 0;
-    return dailyData.reduce((acc, d) => acc + d.valor, 0);
+  // Calculate totals for daily view
+  const { totalDiario, totalAtrasado } = useMemo(() => {
+    if (viewMode !== 'diario') return { totalDiario: 0, totalAtrasado: 0 };
+    return {
+      totalDiario: dailyData.reduce((acc, d) => acc + d.valor + d.valorAtrasado, 0),
+      totalAtrasado: dailyData.reduce((acc, d) => acc + d.valorAtrasado, 0),
+    };
   }, [dailyData, viewMode]);
 
   return (
@@ -258,7 +286,7 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
       <CardContent>
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
+            <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 20 }} stackOffset="sign">
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
               <XAxis
                 dataKey="nome"
@@ -272,47 +300,51 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
                 tickFormatter={(value) => value >= 1000 ? `R$${value / 1000}k` : `R$${value}`}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="valor" radius={[4, 4, 0, 0]}>
-                {data.map((entry, index) => {
-                  let fill = 'hsl(var(--info))';
-                  let opacity = 0.7;
-
-                  if (viewMode === 'mensal') {
-                    if (index === 0) {
-                      fill = 'hsl(var(--primary))';
-                      opacity = 1;
-                    }
-                  } else {
-                    // Daily view
-                    const dayEntry = entry as { status?: string };
-                    switch (dayEntry.status) {
-                      case 'hoje':
-                        fill = 'hsl(var(--primary))';
-                        opacity = 1;
-                        break;
-                      case 'atrasado':
-                        fill = 'hsl(var(--destructive))';
-                        opacity = 1;
-                        break;
-                      case 'passado':
-                        fill = 'hsl(var(--muted-foreground))';
-                        opacity = 0.5;
-                        break;
-                      default:
-                        fill = 'hsl(var(--info))';
-                        opacity = 0.7;
-                    }
-                  }
-
-                  return (
+              {viewMode === 'mensal' ? (
+                <Bar dataKey="valor" radius={[4, 4, 0, 0]}>
+                  {data.map((entry, index) => (
                     <Cell 
                       key={`cell-${index}`} 
-                      fill={fill} 
-                      opacity={opacity}
+                      fill={index === 0 ? 'hsl(var(--primary))' : 'hsl(var(--info))'} 
+                      opacity={index === 0 ? 1 : 0.7}
                     />
-                  );
-                })}
-              </Bar>
+                  ))}
+                </Bar>
+              ) : (
+                <>
+                  <Bar dataKey="valor" stackId="a" radius={[0, 0, 0, 0]}>
+                    {dailyData.map((entry, index) => {
+                      let fill = 'hsl(var(--info))';
+                      let opacity = 0.7;
+
+                      if (entry.status === 'hoje') {
+                        fill = 'hsl(var(--primary))';
+                        opacity = 1;
+                      } else if (entry.status === 'passado') {
+                        fill = 'hsl(var(--muted-foreground))';
+                        opacity = 0.5;
+                      }
+
+                      return (
+                        <Cell 
+                          key={`cell-valor-${index}`} 
+                          fill={fill} 
+                          opacity={opacity}
+                        />
+                      );
+                    })}
+                  </Bar>
+                  <Bar dataKey="valorAtrasado" stackId="a" radius={[4, 4, 0, 0]}>
+                    {dailyData.map((_, index) => (
+                      <Cell 
+                        key={`cell-atrasado-${index}`} 
+                        fill="hsl(var(--destructive))" 
+                        opacity={1}
+                      />
+                    ))}
+                  </Bar>
+                </>
+              )}
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -328,11 +360,11 @@ export function ForecastChart({ clientes }: ForecastChartProps) {
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded-sm bg-destructive" />
-              <span className="text-muted-foreground">Atrasado</span>
+              <span className="text-muted-foreground">Atrasado ({formatCurrency(totalAtrasado)})</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded-sm bg-muted-foreground opacity-50" />
-              <span className="text-muted-foreground">Passado</span>
+              <span className="text-muted-foreground">Pago</span>
             </div>
           </div>
         )}
