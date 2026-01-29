@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, DollarSign, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
+import pixProLogo from '@/assets/pix-pro-logo.png';
 
 const authSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -77,9 +78,7 @@ export default function Auth() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/20 mb-4">
-            <DollarSign className="w-8 h-8 text-primary" />
-          </div>
+          <img src={pixProLogo} alt="Pix Pro" className="w-20 h-20 mx-auto rounded-2xl mb-4 shadow-lg" />
           <h1 className="text-3xl font-bold text-foreground">Pix Pro</h1>
           <p className="text-muted-foreground mt-2">Sistema de controle de vendas</p>
         </div>

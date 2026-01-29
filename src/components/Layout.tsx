@@ -2,7 +2,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { LayoutDashboard, Users, HelpCircle, LogOut, DollarSign } from 'lucide-react';
+import { LayoutDashboard, Users, HelpCircle, LogOut } from 'lucide-react';
+import pixProLogo from '@/assets/pix-pro-logo.png';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -20,10 +21,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-primary" />
-            </div>
-            <span className="font-semibold text-lg text-foreground hidden sm:block">Pix Parcelado</span>
+            <img src={pixProLogo} alt="Pix Pro" className="w-10 h-10 rounded-xl" />
+            <span className="font-semibold text-lg text-foreground hidden sm:block">Pix Pro</span>
           </div>
 
           {/* Navigation */}
