@@ -80,7 +80,7 @@ export default function Auth() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/20 mb-4">
             <DollarSign className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground">Pix Parcelado</h1>
+          <h1 className="text-3xl font-bold text-foreground">Pix Pro</h1>
           <p className="text-muted-foreground mt-2">Sistema de controle de vendas</p>
         </div>
 
