@@ -118,23 +118,36 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
 
     const estaAtrasado = cliente.parcelas_pagas < parcelasQueDeveriamEstarPagas;
 
-    if (estaAtrasado) {
-      // Primeira parcela em aberto = índice igual a parcelas_pagas (0-indexado a partir do 1º vencimento)
-      const vencimentoParcelaEmAberto = getDataVencimentoNoMes(
-        primeiraDataVencimento.getFullYear(),
-        primeiraDataVencimento.getMonth() + cliente.parcelas_pagas
-      );
+    // Verifica se foi marcado como "não pagou" neste mês (mes_referencia_revisao = mês atual e em_revisao = false)
+    const mesAtualStr = `${anoAtual}-${String(mesAtual + 1).padStart(2, '0')}`;
+    const foiMarcadoNaoPagouEsteMes = 
+      cliente.mes_referencia_revisao === mesAtualStr && 
+      !cliente.em_revisao;
 
+    // Verifica se realmente pagou neste mês
+    let pagouEsteMes = false;
+    if (cliente.data_ultimo_pagamento) {
+      const ultimoPagamento = parseDateOnlyISO(cliente.data_ultimo_pagamento);
+      pagouEsteMes = ultimoPagamento.getMonth() === mesAtual && ultimoPagamento.getFullYear() === anoAtual;
+    }
+
+    // Cliente está atrasado se:
+    // 1. Parcelas pagas < parcelas que deveriam estar pagas, OU
+    // 2. Foi marcado como "não pagou" este mês E não tem pagamento registrado este mês
+    const deveSerAtrasado = estaAtrasado || (foiMarcadoNaoPagouEsteMes && !pagouEsteMes);
+
+    if (deveSerAtrasado && !estaAtrasado) {
+      // Calcular dias em atraso baseado no vencimento do mês atual
       dias_em_atraso = Math.max(
         0,
-        Math.floor((hoje.getTime() - vencimentoParcelaEmAberto.getTime()) / (1000 * 60 * 60 * 24))
+        Math.floor((hoje.getTime() - dataVencimentoMesAtual.getTime()) / (1000 * 60 * 60 * 24))
       );
     }
 
     // Prioridade: em revisão
     if (cliente.em_revisao) {
       status = 'Em revisão';
-    } else if (estaAtrasado) {
+    } else if (deveSerAtrasado) {
       status = 'Atrasado';
     }
   }
