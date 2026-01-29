@@ -136,8 +136,8 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
     // 2. Foi marcado como "não pagou" este mês E não tem pagamento registrado este mês
     const deveSerAtrasado = estaAtrasado || (foiMarcadoNaoPagouEsteMes && !pagouEsteMes);
 
-    if (deveSerAtrasado && !estaAtrasado) {
-      // Calcular dias em atraso baseado no vencimento do mês atual
+    // Calcular dias em atraso sempre que estiver atrasado
+    if (deveSerAtrasado) {
       dias_em_atraso = Math.max(
         0,
         Math.floor((hoje.getTime() - dataVencimentoMesAtual.getTime()) / (1000 * 60 * 60 * 24))
