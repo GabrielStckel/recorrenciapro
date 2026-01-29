@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Clientes from "./pages/Clientes";
+import Historico from "./pages/Historico";
 import ComoUsar from "./pages/ComoUsar";
 import NotFound from "./pages/NotFound";
 
@@ -28,6 +29,7 @@ function AppRoutes() {
       <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/clientes" element={<ProtectedRoute><Clientes /></ProtectedRoute>} />
+      <Route path="/historico" element={<ProtectedRoute><Historico /></ProtectedRoute>} />
       <Route path="/como-usar" element={<ProtectedRoute><ComoUsar /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>

@@ -2,12 +2,13 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { LayoutDashboard, Users, HelpCircle, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, History, HelpCircle, LogOut } from 'lucide-react';
 import pixProLogo from '@/assets/pix-pro-logo.png';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/clientes', label: 'Clientes', icon: Users },
+  { href: '/historico', label: 'Histórico', icon: History },
   { href: '/como-usar', label: 'Como Usar', icon: HelpCircle },
 ];
 

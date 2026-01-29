@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ClienteCalculado, StatusCliente, StatusPagamento } from '@/types/cliente';
 import { useClientes } from '@/hooks/useClientes';
 import { useProdutos } from '@/hooks/useProdutos';
+import { useUserSettings } from '@/hooks/useUserSettings';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -20,6 +21,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { PinDialog } from './PinDialog';
 import { Plus, Minus, History, Edit, Trash2, MoreHorizontal, Search, Clock, UserCheck, UserX, Pause, CheckCircle, ChevronDown, Filter, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -71,6 +73,12 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos, hideV
   const [search, setSearch] = useState('');
   const { registrarPagamento, deleteCliente, updateCliente } = useClientes();
   const { produtos } = useProdutos();
+  const { hasPin, verifyPin } = useUserSettings();
+
+  // Estado para diálogo de PIN
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [pinError, setPinError] = useState('');
+  const [pendingAction, setPendingAction] = useState<{ clienteId: string; incremento: number } | null>(null);
 
   const formatCurrency = (value: number) => {
     if (hideValues) return '••••••';
@@ -191,7 +199,27 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos, hideV
     .reduce((acc, c) => acc + c.valor_parcela, 0);
 
   const handlePagamento = (clienteId: string, incremento: number) => {
-    registrarPagamento.mutate({ clienteId, incremento });
+    // Se tem PIN configurado e é um incremento (+1), exigir confirmação
+    if (hasPin && incremento > 0) {
+      setPendingAction({ clienteId, incremento });
+      setPinError('');
+      setPinDialogOpen(true);
+    } else {
+      registrarPagamento.mutate({ clienteId, incremento });
+    }
+  };
+
+  const handlePinConfirm = (pin: string) => {
+    if (!pendingAction) return;
+
+    if (verifyPin(pin)) {
+      registrarPagamento.mutate(pendingAction);
+      setPinDialogOpen(false);
+      setPendingAction(null);
+      setPinError('');
+    } else {
+      setPinError('PIN incorreto');
+    }
   };
 
   const handleDelete = (cliente: ClienteCalculado) => {
@@ -529,6 +557,22 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos, hideV
           </TableBody>
         </Table>
       </div>
+
+      {/* PIN Dialog */}
+      <PinDialog
+        open={pinDialogOpen}
+        onOpenChange={(open) => {
+          setPinDialogOpen(open);
+          if (!open) {
+            setPendingAction(null);
+            setPinError('');
+          }
+        }}
+        onConfirm={handlePinConfirm}
+        error={pinError}
+        title="Confirmar Pagamento"
+        description="Digite seu PIN para confirmar o registro de pagamento"
+      />
     </div>
   );
 }
