@@ -149,15 +149,6 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold">Dashboard</h1>
           
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleHideValues}
-              className="h-9 w-9 text-muted-foreground hover:text-foreground"
-              title={hideValues ? 'Mostrar valores' : 'Ocultar valores'}
-            >
-              {hideValues ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-            </Button>
             <Select value={selectedProduto} onValueChange={setSelectedProduto}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Filtrar por produto" />
@@ -170,6 +161,15 @@ export default function Dashboard() {
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleHideValues}
+              className="h-9 w-9 text-muted-foreground hover:text-foreground"
+              title={hideValues ? 'Mostrar valores' : 'Ocultar valores'}
+            >
+              {hideValues ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+            </Button>
           </div>
         </div>
 
