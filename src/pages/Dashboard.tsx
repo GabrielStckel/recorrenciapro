@@ -148,7 +148,7 @@ export default function Dashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h1 className="text-2xl font-bold">Dashboard</h1>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:flex-row-reverse">
             <Select value={selectedProduto} onValueChange={setSelectedProduto}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Filtrar por produto" />
