@@ -1,21 +1,31 @@
 import { useState } from 'react';
 import { useClientes } from '@/hooks/useClientes';
 import { useHideValues } from '@/hooks/useHideValues';
+import { useUserSettings } from '@/hooks/useUserSettings';
 import { Layout } from '@/components/Layout';
 import { ClientesTable } from '@/components/ClientesTable';
 import { ClienteModal } from '@/components/ClienteModal';
 import { HistoricoModal } from '@/components/HistoricoModal';
 import { MovimentosModal } from '@/components/MovimentosModal';
+import { SetupPinDialog } from '@/components/SetupPinDialog';
 import { Button } from '@/components/ui/button';
-import { Plus, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Plus, Loader2, Eye, EyeOff, Lock, Settings } from 'lucide-react';
 import { ClienteCalculado } from '@/types/cliente';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export default function Clientes() {
   const { clientes, isLoading } = useClientes();
   const { hideValues, toggleHideValues } = useHideValues();
+  const { hasPin, createOrUpdatePin } = useUserSettings();
   const [modalOpen, setModalOpen] = useState(false);
   const [historicoOpen, setHistoricoOpen] = useState(false);
   const [movimentosOpen, setMovimentosOpen] = useState(false);
+  const [pinSetupOpen, setPinSetupOpen] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState<ClienteCalculado | null>(null);
 
   const handleEdit = (cliente: ClienteCalculado) => {
@@ -33,6 +43,11 @@ export default function Clientes() {
     setMovimentosOpen(true);
   };
 
+  const handlePinSetup = (pin: string) => {
+    createOrUpdatePin.mutate(pin);
+    setPinSetupOpen(false);
+  };
+
   if (isLoading) {
     return <Layout><div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div></Layout>;
   }
@@ -43,15 +58,28 @@ export default function Clientes() {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Clientes</h1>
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleHideValues}
-              className="h-9 w-9 text-muted-foreground hover:text-foreground"
-              title={hideValues ? 'Mostrar valores' : 'Ocultar valores'}
-            >
-              {hideValues ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-            </Button>
+            {/* Settings dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 text-muted-foreground hover:text-foreground"
+                >
+                  <Settings className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={toggleHideValues}>
+                  {hideValues ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
+                  {hideValues ? 'Mostrar valores' : 'Ocultar valores'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setPinSetupOpen(true)}>
+                  <Lock className="w-4 h-4 mr-2" />
+                  {hasPin ? 'Alterar PIN' : 'Configurar PIN'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button onClick={() => { setSelectedCliente(null); setModalOpen(true); }}><Plus className="w-4 h-4 mr-2" />Novo Cliente</Button>
           </div>
         </div>
@@ -59,6 +87,12 @@ export default function Clientes() {
         <ClienteModal open={modalOpen} onClose={() => setModalOpen(false)} cliente={selectedCliente} />
         <HistoricoModal open={historicoOpen} onClose={() => setHistoricoOpen(false)} cliente={selectedCliente} />
         <MovimentosModal open={movimentosOpen} onOpenChange={setMovimentosOpen} cliente={selectedCliente} />
+        <SetupPinDialog
+          open={pinSetupOpen}
+          onOpenChange={setPinSetupOpen}
+          onConfirm={handlePinSetup}
+          isUpdate={hasPin}
+        />
       </div>
     </Layout>
   );
