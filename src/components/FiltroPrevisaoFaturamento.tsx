@@ -118,6 +118,7 @@ export function FiltroPrevisaoFaturamento({ clientes, hideValues = false, isOpen
               )} />
             </button>
           </CollapsibleTrigger>
+          <p className="text-xs text-muted-foreground">Atualizado em tempo real</p>
         </CardHeader>
         <CollapsibleContent>
           <CardContent className="space-y-4 pt-0">
