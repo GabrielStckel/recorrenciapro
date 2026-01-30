@@ -211,7 +211,7 @@ export default function Dashboard() {
         <ForecastChart clientes={clientesFiltrados} hideValues={hideValues} />
 
         {/* Evolution + Period Forecast - Side by Side on Desktop */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           <MinhaEvolucao 
             totalRecebido={totalRecebido} 
             hideValues={hideValues} 
