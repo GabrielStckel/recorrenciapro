@@ -22,7 +22,8 @@ export default function Dashboard() {
   const { clientes, isLoading, entrarEmRevisao } = useClientes();
   const [selectedProduto, setSelectedProduto] = useState<string>('Todos');
   const { hideValues, toggleHideValues } = useHideValues();
-  const [openPanel, setOpenPanel] = useState<'evolucao' | 'previsao' | null>(null);
+  const [evolucaoOpen, setEvolucaoOpen] = useState(false);
+  const [previsaoOpen, setPrevisaoOpen] = useState(false);
 
   const formatCurrency = (value: number) => {
     if (hideValues) return '••••••';
@@ -215,14 +216,14 @@ export default function Dashboard() {
           <MinhaEvolucao 
             totalRecebido={totalRecebido} 
             hideValues={hideValues} 
-            isOpen={openPanel === 'evolucao'}
-            onOpenChange={(open) => setOpenPanel(open ? 'evolucao' : null)}
+            isOpen={evolucaoOpen}
+            onOpenChange={setEvolucaoOpen}
           />
           <FiltroPrevisaoFaturamento 
             clientes={clientesFiltrados} 
             hideValues={hideValues}
-            isOpen={openPanel === 'previsao'}
-            onOpenChange={(open) => setOpenPanel(open ? 'previsao' : null)}
+            isOpen={previsaoOpen}
+            onOpenChange={setPrevisaoOpen}
           />
         </div>
 
