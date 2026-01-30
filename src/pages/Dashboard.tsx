@@ -206,15 +206,13 @@ export default function Dashboard() {
           <PagamentosEmRevisao clientes={clientesFiltrados} />
         )}
 
-        {/* Evolution Card + Time Filter + Chart */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          <div className="lg:col-span-1 space-y-6">
-            <MinhaEvolucao totalRecebido={totalRecebido} hideValues={hideValues} />
-            <FiltroPrevisaoFaturamento clientes={clientesFiltrados} hideValues={hideValues} />
-          </div>
-          <div className="lg:col-span-4">
-            <ForecastChart clientes={clientesFiltrados} hideValues={hideValues} />
-          </div>
+        {/* Forecast Chart - Full Width */}
+        <ForecastChart clientes={clientesFiltrados} hideValues={hideValues} />
+
+        {/* Evolution + Period Forecast - Side by Side on Desktop */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <MinhaEvolucao totalRecebido={totalRecebido} hideValues={hideValues} />
+          <FiltroPrevisaoFaturamento clientes={clientesFiltrados} hideValues={hideValues} />
         </div>
 
         {/* Clientes Atrasados - abaixo do gráfico */}
