@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Trophy, Rocket, Star, Crown, Diamond, Target, ChevronDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -25,10 +24,11 @@ const premiacoes: Premiacao[] = [
 interface MinhaEvolucaoProps {
   totalRecebido: number;
   hideValues?: boolean;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function MinhaEvolucao({ totalRecebido, hideValues = false }: MinhaEvolucaoProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function MinhaEvolucao({ totalRecebido, hideValues = false, isOpen = false, onOpenChange }: MinhaEvolucaoProps) {
 
   const formatCurrency = (value: number) => {
     if (hideValues) return '••••••';
@@ -63,7 +63,7 @@ export function MinhaEvolucao({ totalRecebido, hideValues = false }: MinhaEvoluc
 
   return (
     <Card className="bg-gradient-to-br from-card to-card/80 border-border">
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Collapsible open={isOpen} onOpenChange={onOpenChange}>
         <CardHeader className="pb-3">
           <CollapsibleTrigger asChild>
             <button className="flex items-center justify-between w-full text-left group">
