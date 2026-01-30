@@ -15,16 +15,16 @@ import { cn } from '@/lib/utils';
 interface FiltroPrevisaoFaturamentoProps {
   clientes: ClienteCalculado[];
   hideValues?: boolean;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 type FilterMode = 'dias' | 'data';
 
-export function FiltroPrevisaoFaturamento({ clientes, hideValues = false }: FiltroPrevisaoFaturamentoProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function FiltroPrevisaoFaturamento({ clientes, hideValues = false, isOpen = false, onOpenChange }: FiltroPrevisaoFaturamentoProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('dias');
   const [diasFiltro, setDiasFiltro] = useState<number>(30);
   const [dataFiltro, setDataFiltro] = useState<Date | undefined>(addDays(new Date(), 30));
-
   const hoje = startOfDay(new Date());
 
   // Calculate the target date based on filter mode
@@ -104,7 +104,7 @@ export function FiltroPrevisaoFaturamento({ clientes, hideValues = false }: Filt
 
   return (
     <Card className="glass">
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Collapsible open={isOpen} onOpenChange={onOpenChange}>
         <CardHeader className="pb-3">
           <CollapsibleTrigger asChild>
             <button className="flex items-center justify-between w-full text-left group">
