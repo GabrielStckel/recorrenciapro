@@ -22,8 +22,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={pixProLogo} alt="Pix Pro" className="w-10 h-10 rounded-xl" />
-            <span className="font-semibold text-lg text-foreground hidden sm:block">Pix Pro</span>
+            <img src={pixProLogo} alt="Recorrência Pro" className="w-10 h-10 rounded-xl" />
+            <span className="font-semibold text-lg text-foreground hidden sm:block">Recorrência Pro</span>
           </div>
 
           {/* Navigation */}
