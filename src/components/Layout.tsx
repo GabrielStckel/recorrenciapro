@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { LayoutDashboard, Users, History, HelpCircle, LogOut } from 'lucide-react';
-import pixProLogo from '@/assets/pix-pro-logo.png';
+import recorrenciaLogo from '@/assets/recorrencia-pro-logo.png';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -21,9 +21,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Header */}
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src={pixProLogo} alt="Recorrência Pro" className="w-10 h-10 rounded-xl" />
-            <span className="font-semibold text-lg text-foreground hidden sm:block">Recorrência Pro</span>
+          <div className="flex items-center gap-2.5">
+            <img src={recorrenciaLogo} alt="Recorrência Pro" className="w-9 h-9" />
+            <span className="font-semibold text-lg bg-gradient-to-r from-primary to-emerald-400 bg-clip-text text-transparent hidden sm:block">
+              Recorrência Pro
+            </span>
           </div>
 
           {/* Navigation */}
