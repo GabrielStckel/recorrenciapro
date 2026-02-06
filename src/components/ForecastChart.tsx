@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -75,7 +75,6 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
     const isMesAtual = mesAlvo === hoje.getMonth() && anoAlvo === hoje.getFullYear();
     const isMesFuturo = new Date(anoAlvo, mesAlvo, 1) > new Date(hoje.getFullYear(), hoje.getMonth(), 1);
 
-    // Initialize all days of the month
     const dias: { 
       nome: string; 
       valor: number; 
@@ -84,9 +83,10 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
       valorEmRevisao: number; 
       dia: number; 
       isHoje: boolean;
-      clientesAReceber: number[]; // Individual client values for future pending payments
-      clientesPagos: number[]; // Individual client values for paid payments
+      clientesAReceber: number[];
+      clientesPagos: number[];
     }[] = [];
+    
     for (let d = 1; d <= ultimoDiaMes; d++) {
       dias.push({
         nome: d.toString().padStart(2, '0'),
@@ -101,7 +101,6 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
       });
     }
 
-    // Calculate expected payments per day
     clientes.forEach((cliente) => {
       if (cliente.status_cliente !== 'ATIVO') return;
 
@@ -109,25 +108,20 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
       const totalParcelas = cliente.total_parcelas;
       const parcelasPagas = cliente.parcelas_pagas;
 
-      // Parse data_inicio
       const [year, month] = cliente.data_inicio.split('-').map(Number);
-      const primeiroPagamentoMes = month - 1; // 0-indexed
+      const primeiroPagamentoMes = month - 1;
       const primeiroPagamentoAno = year;
 
-      // Calculate which parcel number would be due in the selected month (1-indexed)
       const mesesDesdeInicio = (anoAlvo - primeiroPagamentoAno) * 12 + (mesAlvo - primeiroPagamentoMes);
-      const numeroParcela = mesesDesdeInicio + 1; // Parcel number (1-indexed)
+      const numeroParcela = mesesDesdeInicio + 1;
 
-      // Only include if this month falls within the contract period
       if (numeroParcela >= 1 && numeroParcela <= totalParcelas) {
         const diaVencimento = Math.min(cliente.dia_vencimento, ultimoDiaMes);
         const diaIndex = diaVencimento - 1;
 
         if (diaIndex >= 0 && diaIndex < dias.length) {
-          // Check if this specific parcel was already paid
           const parcelaPaga = parcelasPagas >= numeroParcela;
 
-          // Check if client is in review for the selected month
           const mesRevisaoCliente = cliente.mes_referencia_revisao;
           const mesAnoAlvo = `${anoAlvo}-${String(mesAlvo + 1).padStart(2, '0')}`;
           const estaEmRevisaoNoMes = cliente.em_revisao && mesRevisaoCliente === mesAnoAlvo;
@@ -135,22 +129,16 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
           const isDataFutura = isMesFuturo || (isMesAtual && diaVencimento > hoje.getDate());
 
           if (parcelaPaga) {
-            // Already paid - show as paid (gray) and track individual clients
             dias[diaIndex].valorPago += valorParcela;
             dias[diaIndex].clientesPagos.push(valorParcela);
           } else if (estaEmRevisaoNoMes) {
-            // Client is in review - show with warning color
             dias[diaIndex].valorEmRevisao += valorParcela;
           } else if (isDataFutura) {
-            // Future date - show as pending (blue) and track individual clients
             dias[diaIndex].valor += valorParcela;
             dias[diaIndex].clientesAReceber.push(valorParcela);
           } else if (isMesAtual && diaVencimento === hoje.getDate()) {
-            // Today - show with status colors (em revisão or pago), not as generic pending
-            // If not paid and not in review yet, it's still pending for today
             dias[diaIndex].valor += valorParcela;
           } else {
-            // Past due date and not paid and not in review - overdue (red)
             dias[diaIndex].valorAtrasado += valorParcela;
           }
         }
@@ -180,37 +168,43 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
     const numClientes = dayData.clientesAReceber.length;
 
     return (
-      <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
-        <p className="text-sm font-medium text-foreground mb-1">
-          Dia {label} {dayData.isHoje && <span className="text-primary">(Hoje)</span>}
+      <div className="bg-card/95 backdrop-blur-xl border border-border/50 rounded-xl p-4 shadow-2xl">
+        <p className="text-sm font-semibold text-foreground mb-2">
+          Dia {label} {dayData.isHoje && <span className="text-primary ml-1">(Hoje)</span>}
         </p>
         {total > 0 ? (
-          <>
+          <div className="space-y-1.5">
             {dayData.valor > 0 && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-primary" />
                 A receber: {formatCurrency(dayData.valor)}
-                {numClientes > 0 && ` (${numClientes} cliente${numClientes > 1 ? 's' : ''})`}
+                {numClientes > 0 && <span className="text-xs opacity-70">({numClientes})</span>}
               </p>
             )}
             {dayData.valorPago > 0 && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
                 Pago: {formatCurrency(dayData.valorPago)}
               </p>
             )}
             {dayData.valorEmRevisao > 0 && (
-              <p className="text-sm text-warning">
+              <p className="text-sm text-warning flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-warning" />
                 Em revisão: {formatCurrency(dayData.valorEmRevisao)}
               </p>
             )}
             {dayData.valorAtrasado > 0 && (
-              <p className="text-sm text-destructive">
+              <p className="text-sm text-destructive flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-destructive" />
                 Atrasado: {formatCurrency(dayData.valorAtrasado)}
               </p>
             )}
-            <p className="text-lg font-bold text-primary mt-1">
-              Total: {formatCurrency(total)}
-            </p>
-          </>
+            <div className="pt-2 mt-2 border-t border-border/50">
+              <p className="text-lg font-bold text-foreground">
+                {formatCurrency(total)}
+              </p>
+            </div>
+          </div>
         ) : (
           <p className="text-xs text-muted-foreground">Nenhum vencimento</p>
         )}
@@ -222,9 +216,9 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
     if (!active || !payload?.length) return null;
     
     return (
-      <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        <p className="text-lg font-bold text-primary">
+      <div className="bg-card/95 backdrop-blur-xl border border-border/50 rounded-xl p-4 shadow-2xl">
+        <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
+        <p className="text-2xl font-bold text-foreground mt-1">
           {formatCurrency(payload[0].value)}
         </p>
       </div>
@@ -245,7 +239,6 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
     });
   };
 
-  // Calculate totals for daily view
   const { totalDiario, totalAtrasado, totalEmRevisao, totalPago } = useMemo(() => {
     if (viewMode !== 'diario') return { totalDiario: 0, totalAtrasado: 0, totalEmRevisao: 0, totalPago: 0 };
     
@@ -264,64 +257,6 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
     return { totalDiario: total, totalAtrasado: atrasado, totalEmRevisao: emRevisao, totalPago: pago };
   }, [dailyData, viewMode]);
 
-  // Custom bar shape that shows separators between clients
-  const createBarWithSeparators = (fill: string, opacity: number) => (props: any) => {
-    const { x, y, width, height, payload, dataKey } = props;
-    
-    const clientesArray = dataKey === 'valorPago' ? payload?.clientesPagos : payload?.clientesAReceber;
-    
-    if (!clientesArray || clientesArray.length <= 1 || height <= 0) {
-      // No separators needed - just render normal rectangle
-      return <rect x={x} y={y} width={width} height={height} fill={fill} opacity={opacity} />;
-    }
-
-    const total = clientesArray.reduce((sum: number, v: number) => sum + v, 0);
-    
-    if (total <= 0) {
-      return <rect x={x} y={y} width={width} height={height} fill={fill} opacity={opacity} />;
-    }
-
-    // Render segments with separators
-    const segments: JSX.Element[] = [];
-    let currentY = y;
-    
-    clientesArray.forEach((valor: number, idx: number) => {
-      const segmentHeight = (valor / total) * height;
-      
-      segments.push(
-        <rect
-          key={`segment-${idx}`}
-          x={x}
-          y={currentY}
-          width={width}
-          height={Math.max(0, segmentHeight - (idx < clientesArray.length - 1 ? 1 : 0))}
-          fill={fill}
-          opacity={opacity}
-        />
-      );
-      
-      // Add separator line between segments (white color)
-      if (idx < clientesArray.length - 1 && segmentHeight > 2) {
-        segments.push(
-          <line
-            key={`sep-${idx}`}
-            x1={x}
-            y1={currentY + segmentHeight}
-            x2={x + width}
-            y2={currentY + segmentHeight}
-            stroke="white"
-            strokeWidth={1}
-          />
-        );
-      }
-      
-      currentY += segmentHeight;
-    });
-
-    return <g>{segments}</g>;
-  };
-
-  // Find today's index for the reference line
   const hoje = new Date();
   const hojeIndex = useMemo(() => {
     if (viewMode !== 'diario') return -1;
@@ -333,41 +268,47 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
     return -1;
   }, [selectedMonth, viewMode]);
 
+  // Calculate total for monthly view
+  const totalMensal = useMemo(() => {
+    return monthlyData.reduce((sum, m) => sum + m.valor, 0);
+  }, [monthlyData]);
+
   return (
-    <Card className="glass">
-      <CardHeader className="pb-2">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <CardTitle className="text-lg">
+    <Card className="glass overflow-hidden">
+      <CardHeader className="pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="space-y-1">
+            <CardTitle className="text-xl font-semibold">
               {viewMode === 'mensal' 
-                ? 'Previsão de Faturamento (12 meses)' 
-                : 'Previsão do Mês'
+                ? 'Previsão de Faturamento' 
+                : 'Receita do Mês'
               }
             </CardTitle>
-            {viewMode === 'diario' && (
-              <span className="text-sm text-muted-foreground">
-                ({formatCurrency(totalDiario)})
+            <p className="text-2xl font-bold text-primary">
+              {viewMode === 'mensal' ? formatCurrency(totalMensal) : formatCurrency(totalDiario)}
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                {viewMode === 'mensal' ? 'próximos 12 meses' : 'previsão'}
               </span>
-            )}
+            </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {viewMode === 'diario' && (
-              <div className="flex items-center gap-1 mr-2">
+              <div className="flex items-center gap-1 bg-secondary/50 rounded-lg p-1">
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="h-7 w-7"
+                  className="h-8 w-8 hover:bg-background/50"
                   onClick={() => navigateMonth('prev')}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <span className="text-sm font-medium min-w-[120px] text-center capitalize">
+                <span className="text-sm font-medium min-w-[130px] text-center capitalize px-2">
                   {nomeMes}
                 </span>
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="h-7 w-7"
+                  className="h-8 w-8 hover:bg-background/50"
                   onClick={() => navigateMonth('next')}
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -375,62 +316,80 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
               </div>
             )}
             <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
-              <TabsList className="h-8">
-                <TabsTrigger value="mensal" className="h-7 px-3 text-xs gap-1.5">
-                  <TrendingUp className="w-3.5 h-3.5" />
-                  Mensal
+              <TabsList className="bg-secondary/50 p-1">
+                <TabsTrigger 
+                  value="mensal" 
+                  className="px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm gap-2"
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  <span className="hidden sm:inline">Mensal</span>
                 </TabsTrigger>
-                <TabsTrigger value="diario" className="h-7 px-3 text-xs gap-1.5">
-                  <Calendar className="w-3.5 h-3.5" />
-                  Diário
+                <TabsTrigger 
+                  value="diario" 
+                  className="px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm gap-2"
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span className="hidden sm:inline">Diário</span>
                 </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="h-[300px]">
+      <CardContent className="pt-0">
+        <div className="h-[320px]">
           <ResponsiveContainer width="100%" height="100%">
             {viewMode === 'mensal' ? (
-              <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+              <AreaChart data={monthlyData} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
+                <defs>
+                  <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
                 <XAxis
                   dataKey="nome"
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                  axisLine={{ stroke: 'hsl(var(--border))' }}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  dy={10}
                 />
                 <YAxis
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                  axisLine={{ stroke: 'hsl(var(--border))' }}
-                  tickFormatter={(value) => value >= 1000 ? `R$${value / 1000}k` : `R$${value}`}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(value) => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toString()}
+                  dx={-10}
                 />
-                <Tooltip content={<MonthlyTooltip />} />
-                <Bar dataKey="valor" radius={[4, 4, 0, 0]}>
-                  {monthlyData.map((_, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={index === 0 ? 'hsl(var(--primary))' : 'hsl(var(--info))'} 
-                      opacity={index === 0 ? 1 : 0.7}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
+                <Tooltip content={<MonthlyTooltip />} cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '4 4' }} />
+                <Area 
+                  type="monotone" 
+                  dataKey="valor" 
+                  stroke="hsl(var(--primary))" 
+                  strokeWidth={2.5}
+                  fill="url(#colorValor)" 
+                  dot={{ fill: 'hsl(var(--primary))', strokeWidth: 0, r: 4 }}
+                  activeDot={{ fill: 'hsl(var(--primary))', stroke: 'hsl(var(--background))', strokeWidth: 3, r: 6 }}
+                />
+              </AreaChart>
             ) : (
-              <BarChart data={dailyData} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+              <BarChart data={dailyData} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
                 <XAxis
                   dataKey="nome"
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                  axisLine={{ stroke: 'hsl(var(--border))' }}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }}
+                  axisLine={false}
+                  tickLine={false}
                   interval={1}
+                  dy={10}
                 />
                 <YAxis
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                  axisLine={{ stroke: 'hsl(var(--border))' }}
-                  tickFormatter={(value) => value >= 1000 ? `R$${value / 1000}k` : `R$${value}`}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(value) => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toString()}
+                  dx={-10}
                 />
-                <Tooltip content={<DailyTooltip />} />
+                <Tooltip content={<DailyTooltip />} cursor={{ fill: 'hsl(var(--primary))', opacity: 0.1 }} />
                 {hojeIndex > 0 && (
                   <ReferenceLine 
                     x={hojeIndex.toString().padStart(2, '0')} 
@@ -442,21 +401,21 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
                 <Bar 
                   dataKey="valorPago" 
                   stackId="a" 
+                  fill="hsl(142 76% 36%)"
+                  opacity={0.6}
                   radius={[0, 0, 0, 0]}
-                  shape={createBarWithSeparators('hsl(var(--muted-foreground))', 0.5)}
                 />
                 <Bar 
                   dataKey="valor" 
                   stackId="a" 
+                  fill="hsl(var(--primary))"
                   radius={[0, 0, 0, 0]}
-                  shape={createBarWithSeparators('hsl(var(--info))', 0.7)}
                 />
                 <Bar dataKey="valorEmRevisao" stackId="a" radius={[0, 0, 0, 0]}>
                   {dailyData.map((_, index) => (
                     <Cell 
                       key={`cell-revisao-${index}`} 
                       fill="hsl(var(--warning))" 
-                      opacity={1}
                     />
                   ))}
                 </Bar>
@@ -465,7 +424,6 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
                     <Cell 
                       key={`cell-atrasado-${index}`} 
                       fill="hsl(var(--destructive))" 
-                      opacity={1}
                     />
                   ))}
                 </Bar>
@@ -474,31 +432,27 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
           </ResponsiveContainer>
         </div>
         {viewMode === 'diario' && (
-          <div className="flex items-center justify-center gap-4 mt-3 text-xs flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <div className="w-4 h-0.5 bg-primary" style={{ borderTop: '2px dashed hsl(var(--primary))' }} />
-              <span className="text-muted-foreground">Hoje</span>
+          <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-border/30">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-primary" />
+              <span className="text-xs text-muted-foreground">A receber</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm bg-info opacity-70" />
-              <span className="text-muted-foreground">A receber</span>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-primary/60" />
+              <span className="text-xs text-muted-foreground">Pago</span>
             </div>
             {totalEmRevisao > 0 && (
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-sm bg-warning" />
-                <span className="text-muted-foreground">Em revisão</span>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-warning" />
+                <span className="text-xs text-muted-foreground">Em revisão</span>
               </div>
             )}
             {totalAtrasado > 0 && (
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-sm bg-destructive" />
-                <span className="text-muted-foreground">Atrasado</span>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-destructive" />
+                <span className="text-xs text-muted-foreground">Atrasado</span>
               </div>
             )}
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm bg-muted-foreground opacity-50" />
-              <span className="text-muted-foreground">Pago</span>
-            </div>
           </div>
         )}
       </CardContent>
