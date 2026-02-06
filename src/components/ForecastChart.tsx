@@ -5,6 +5,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { ClienteCalculado } from '@/types/cliente';
 import { Calendar, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ForecastChartProps {
   clientes: ClienteCalculado[];
@@ -14,9 +15,10 @@ interface ForecastChartProps {
 type ViewMode = 'mensal' | 'diario';
 
 export function ForecastChart({ clientes, hideValues = false }: ForecastChartProps) {
+  const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<ViewMode>('mensal');
   const [selectedMonth, setSelectedMonth] = useState(() => new Date());
-  const [monthsToShow, setMonthsToShow] = useState<6 | 12>(6);
+  const [monthsToShow, setMonthsToShow] = useState<6 | 12>(12); // Default 12 for desktop
 
   // Monthly forecast data (existing logic)
   const monthlyData = useMemo(() => {
@@ -253,10 +255,11 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
     return -1;
   }, [selectedMonth, viewMode]);
 
-  // Filter monthly data based on selection (mobile toggle)
+  // Filter monthly data based on selection
+  const displayMonths = isMobile ? monthsToShow : 12; // Always 12 on desktop
   const filteredMonthlyData = useMemo(() => {
-    return monthlyData.slice(0, monthsToShow);
-  }, [monthlyData, monthsToShow]);
+    return monthlyData.slice(0, displayMonths);
+  }, [monthlyData, displayMonths]);
 
   // Calculate total for monthly view
   const totalMensal = useMemo(() => {
@@ -274,10 +277,10 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
                 : 'Receita do Mês'
               }
             </CardTitle>
-            <p className="text-2xl font-bold text-primary">
+            <p className="text-xl sm:text-2xl font-bold text-primary">
               {viewMode === 'mensal' ? formatCurrency(totalMensal) : formatCurrency(totalDiario)}
-              <span className="text-sm font-normal text-muted-foreground ml-2">
-                {viewMode === 'mensal' ? `próximos ${monthsToShow} meses` : 'previsão'}
+              <span className="text-xs sm:text-sm font-normal text-muted-foreground ml-2">
+                {viewMode === 'mensal' ? (isMobile ? `próximos ${monthsToShow}m` : 'próximos 12 meses') : 'previsão'}
               </span>
             </p>
           </div>
@@ -352,10 +355,10 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="h-[320px]">
+        <div className="h-[260px] sm:h-[320px]">
           <ResponsiveContainer width="100%" height="100%">
             {viewMode === 'mensal' ? (
-              <AreaChart data={filteredMonthlyData} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
+              <AreaChart data={filteredMonthlyData} margin={{ top: 10, right: 10, left: -10, bottom: 10 }}>
                 <defs>
                   <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
@@ -364,17 +367,19 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
                 </defs>
                 <XAxis
                   dataKey="nome"
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: isMobile ? 9 : 11 }}
                   axisLine={false}
                   tickLine={false}
-                  dy={10}
+                  dy={8}
+                  interval={isMobile && displayMonths > 6 ? 1 : 0}
                 />
                 <YAxis
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: isMobile ? 9 : 11 }}
                   axisLine={false}
                   tickLine={false}
                   tickFormatter={(value) => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toString()}
-                  dx={-10}
+                  dx={-5}
+                  width={35}
                 />
                 <Tooltip content={<MonthlyTooltip />} cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '4 4' }} />
                 <Area 
@@ -388,21 +393,22 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
                 />
               </AreaChart>
             ) : (
-              <BarChart data={dailyData} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
+              <BarChart data={dailyData} margin={{ top: 10, right: 10, left: -10, bottom: 10 }}>
                 <XAxis
                   dataKey="nome"
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: isMobile ? 7 : 9 }}
                   axisLine={false}
                   tickLine={false}
-                  interval={1}
-                  dy={10}
+                  interval={isMobile ? 2 : 1}
+                  dy={8}
                 />
                 <YAxis
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: isMobile ? 9 : 11 }}
                   axisLine={false}
                   tickLine={false}
                   tickFormatter={(value) => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toString()}
-                  dx={-10}
+                  dx={-5}
+                  width={35}
                 />
                 <Tooltip content={<DailyTooltip />} cursor={{ fill: 'hsl(var(--primary))', opacity: 0.1 }} />
                 {hojeIndex > 0 && (
