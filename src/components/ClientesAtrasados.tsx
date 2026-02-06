@@ -35,22 +35,22 @@ export function ClientesAtrasados({ clientes, hideValues = false }: ClientesAtra
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {atrasados.map((cliente) => (
             <div
               key={cliente.id}
-              className="group p-4 rounded-xl bg-destructive/10 border border-destructive/20 hover:border-destructive/40 hover:bg-destructive/15 transition-all duration-200"
+              className="group p-2.5 rounded-lg bg-destructive/10 border border-destructive/20 hover:border-destructive/40 hover:bg-destructive/15 transition-all duration-200"
             >
-              <div className="flex items-start justify-between">
-                <div className="min-w-0 flex-1 pr-3">
-                  <p className="font-medium text-foreground truncate">{cliente.cliente_nome}</p>
-                  <p className="text-sm text-muted-foreground truncate">{cliente.produto}</p>
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground truncate">{cliente.cliente_nome}</p>
+                  <p className="text-xs text-muted-foreground truncate">{cliente.produto}</p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <Badge variant="destructive" className="mb-1">
-                    {cliente.dias_em_atraso} dias
+                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                    {cliente.dias_em_atraso}d
                   </Badge>
-                  <p className="text-lg font-semibold text-foreground">
+                  <p className="text-sm font-semibold text-foreground">
                     {formatCurrency(cliente.valor_parcela)}
                   </p>
                 </div>
