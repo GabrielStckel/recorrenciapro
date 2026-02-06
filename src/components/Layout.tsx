@@ -72,7 +72,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col items-center gap-1 text-sm text-muted-foreground">
             <p>© {new Date().getFullYear()} Recorrência Pro. Todos os direitos reservados.</p>
-            <p className="text-xs">Feito com 💚 para gestão de recorrências</p>
+            <p>Feito com 💚 para gestão de recorrências</p>
           </div>
         </div>
       </footer>
