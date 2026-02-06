@@ -202,42 +202,42 @@ export default function Historico() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="pt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Card className="glass-strong">
+            <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-muted rounded-lg">
+                <div className="p-2.5 rounded-xl bg-muted">
                   <Calendar className="w-5 h-5 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats.total}</p>
-                  <p className="text-sm text-muted-foreground">Total de registros</p>
+                  <p className="text-xs text-muted-foreground">Total de registros</p>
+                  <p className="text-xl font-bold">{stats.total}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-4">
+          <Card className="glass-strong">
+            <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-success/10 rounded-lg">
+                <div className="p-2.5 rounded-xl bg-success/20">
                   <ArrowUp className="w-5 h-5 text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-success">{stats.incrementos}</p>
-                  <p className="text-sm text-muted-foreground">Pagamentos registrados</p>
+                  <p className="text-xs text-muted-foreground">Pagamentos registrados</p>
+                  <p className="text-xl font-bold text-success">{stats.incrementos}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-4">
+          <Card className="glass-strong">
+            <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-destructive/10 rounded-lg">
+                <div className="p-2.5 rounded-xl bg-destructive/20">
                   <ArrowDown className="w-5 h-5 text-destructive" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-destructive">{stats.decrementos}</p>
-                  <p className="text-sm text-muted-foreground">Estornos/Correções</p>
+                  <p className="text-xs text-muted-foreground">Estornos/Correções</p>
+                  <p className="text-xl font-bold text-destructive">{stats.decrementos}</p>
                 </div>
               </div>
             </CardContent>
