@@ -24,6 +24,7 @@ export default function Dashboard() {
   const { hideValues, toggleHideValues } = useHideValues();
   const [evolucaoOpen, setEvolucaoOpen] = useState(false);
   const [previsaoOpen, setPrevisaoOpen] = useState(false);
+  const [atrasadosOpen, setAtrasadosOpen] = useState(false); // Fechado por padrão
   const [hideClientNames, setHideClientNames] = useState(true); // Nomes ocultos por padrão
 
   const formatCurrency = (value: number) => {
@@ -236,7 +237,13 @@ export default function Dashboard() {
         </div>
 
         {/* Clientes Atrasados - abaixo do gráfico */}
-        <ClientesAtrasados clientes={clientesFiltrados} hideValues={hideValues} hideNames={hideClientNames} />
+        <ClientesAtrasados 
+          clientes={clientesFiltrados} 
+          hideValues={hideValues} 
+          hideNames={hideClientNames}
+          isOpen={atrasadosOpen}
+          onOpenChange={setAtrasadosOpen}
+        />
       </div>
     </Layout>
   );
