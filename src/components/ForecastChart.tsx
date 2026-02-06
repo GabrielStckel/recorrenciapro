@@ -421,10 +421,6 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
         {viewMode === 'diario' && (
           <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-border/30">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-muted-foreground/50" />
-              <span className="text-xs text-muted-foreground">A receber</span>
-            </div>
-            <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-primary" />
               <span className="text-xs text-muted-foreground">Pago</span>
             </div>
@@ -434,6 +430,10 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
                 <span className="text-xs text-muted-foreground">Atrasado</span>
               </div>
             )}
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-muted-foreground/50" />
+              <span className="text-xs text-muted-foreground">A receber</span>
+            </div>
           </div>
         )}
       </CardContent>
