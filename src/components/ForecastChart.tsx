@@ -16,6 +16,7 @@ type ViewMode = 'mensal' | 'diario';
 export function ForecastChart({ clientes, hideValues = false }: ForecastChartProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('mensal');
   const [selectedMonth, setSelectedMonth] = useState(() => new Date());
+  const [monthsToShow, setMonthsToShow] = useState<6 | 12>(6);
 
   // Monthly forecast data (existing logic)
   const monthlyData = useMemo(() => {
@@ -252,10 +253,15 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
     return -1;
   }, [selectedMonth, viewMode]);
 
+  // Filter monthly data based on selection (mobile toggle)
+  const filteredMonthlyData = useMemo(() => {
+    return monthlyData.slice(0, monthsToShow);
+  }, [monthlyData, monthsToShow]);
+
   // Calculate total for monthly view
   const totalMensal = useMemo(() => {
-    return monthlyData.reduce((sum, m) => sum + m.valor, 0);
-  }, [monthlyData]);
+    return filteredMonthlyData.reduce((sum, m) => sum + m.valor, 0);
+  }, [filteredMonthlyData]);
 
   return (
     <Card className="glass overflow-hidden">
@@ -271,11 +277,36 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
             <p className="text-2xl font-bold text-primary">
               {viewMode === 'mensal' ? formatCurrency(totalMensal) : formatCurrency(totalDiario)}
               <span className="text-sm font-normal text-muted-foreground ml-2">
-                {viewMode === 'mensal' ? 'próximos 12 meses' : 'previsão'}
+                {viewMode === 'mensal' ? `próximos ${monthsToShow} meses` : 'previsão'}
               </span>
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Mobile month toggle - only show in mensal view */}
+            {viewMode === 'mensal' && (
+              <div className="flex sm:hidden bg-secondary/50 rounded-lg p-0.5">
+                <button
+                  onClick={() => setMonthsToShow(6)}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+                    monthsToShow === 6
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  6m
+                </button>
+                <button
+                  onClick={() => setMonthsToShow(12)}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+                    monthsToShow === 12
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  12m
+                </button>
+              </div>
+            )}
             {viewMode === 'diario' && (
               <div className="flex items-center gap-1 bg-secondary/50 rounded-lg p-1">
                 <Button 
@@ -324,7 +355,7 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
         <div className="h-[320px]">
           <ResponsiveContainer width="100%" height="100%">
             {viewMode === 'mensal' ? (
-              <AreaChart data={monthlyData} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
+              <AreaChart data={filteredMonthlyData} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
                 <defs>
                   <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
