@@ -39,17 +39,17 @@ export function KPICard({
   };
 
   return (
-    <Card className={cn('glass transition-all hover:scale-[1.02] h-full', variants[variant])}>
-      <CardContent className="p-4 sm:p-5 h-full">
-        <div className="flex items-center gap-3 h-full min-h-[72px]">
-          <div className={cn('p-2.5 rounded-xl shrink-0', iconVariants[variant])}>
-            <Icon className="w-5 h-5 sm:w-5 sm:h-5" />
+    <Card className={cn('glass transition-all hover:scale-[1.02] h-full overflow-hidden', variants[variant])}>
+      <CardContent className="p-4 h-full">
+        <div className="flex items-center gap-3 h-full min-h-[68px]">
+          <div className={cn('p-2 rounded-xl shrink-0', iconVariants[variant])}>
+            <Icon className="w-5 h-5" />
           </div>
           <div className="min-w-0 flex-1 flex flex-col justify-center">
-            <p className="text-sm sm:text-sm text-muted-foreground truncate">{title}</p>
-            <p className="text-xl sm:text-xl font-bold text-foreground truncate">{value}</p>
+            <p className="text-xs text-muted-foreground truncate">{title}</p>
+            <p className="text-lg font-bold text-foreground truncate">{value}</p>
             {subtitle && (
-              <p className="text-xs text-muted-foreground">{subtitle}</p>
+              <p className="text-[10px] text-muted-foreground">{subtitle}</p>
             )}
           </div>
           {showPrivacyToggle && onPrivacyToggle && (
@@ -60,10 +60,10 @@ export function KPICard({
                 e.stopPropagation();
                 onPrivacyToggle();
               }}
-              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+              className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
               title={isPrivate ? 'Mostrar nomes' : 'Ocultar nomes'}
             >
-              {isPrivate ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {isPrivate ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
             </Button>
           )}
         </div>
