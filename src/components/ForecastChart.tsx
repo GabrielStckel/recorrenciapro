@@ -77,27 +77,23 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
 
     const dias: { 
       nome: string; 
-      valor: number; 
-      valorPago: number;
-      valorAtrasado: number; 
-      valorEmRevisao: number; 
+      valorPendente: number; // Future payments (gray)
+      valorPago: number; // Paid (green)
+      valorAtrasado: number; // Overdue (red)
+      valorHojePendente: number; // Today's pending (gray until marked)
       dia: number; 
       isHoje: boolean;
-      clientesAReceber: number[];
-      clientesPagos: number[];
     }[] = [];
     
     for (let d = 1; d <= ultimoDiaMes; d++) {
       dias.push({
         nome: d.toString().padStart(2, '0'),
-        valor: 0,
+        valorPendente: 0,
         valorPago: 0,
         valorAtrasado: 0,
-        valorEmRevisao: 0,
+        valorHojePendente: 0,
         dia: d,
         isHoje: isMesAtual && d === hoje.getDate(),
-        clientesAReceber: [],
-        clientesPagos: [],
       });
     }
 
@@ -121,24 +117,20 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
 
         if (diaIndex >= 0 && diaIndex < dias.length) {
           const parcelaPaga = parcelasPagas >= numeroParcela;
-
-          const mesRevisaoCliente = cliente.mes_referencia_revisao;
-          const mesAnoAlvo = `${anoAlvo}-${String(mesAlvo + 1).padStart(2, '0')}`;
-          const estaEmRevisaoNoMes = cliente.em_revisao && mesRevisaoCliente === mesAnoAlvo;
-
           const isDataFutura = isMesFuturo || (isMesAtual && diaVencimento > hoje.getDate());
+          const isHoje = isMesAtual && diaVencimento === hoje.getDate();
 
           if (parcelaPaga) {
+            // Already paid = GREEN
             dias[diaIndex].valorPago += valorParcela;
-            dias[diaIndex].clientesPagos.push(valorParcela);
-          } else if (estaEmRevisaoNoMes) {
-            dias[diaIndex].valorEmRevisao += valorParcela;
           } else if (isDataFutura) {
-            dias[diaIndex].valor += valorParcela;
-            dias[diaIndex].clientesAReceber.push(valorParcela);
-          } else if (isMesAtual && diaVencimento === hoje.getDate()) {
-            dias[diaIndex].valor += valorParcela;
+            // Future date = GRAY (pending)
+            dias[diaIndex].valorPendente += valorParcela;
+          } else if (isHoje) {
+            // Today and not paid yet = GRAY (pending for today)
+            dias[diaIndex].valorHojePendente += valorParcela;
           } else {
+            // Past due date and not paid = RED (overdue)
             dias[diaIndex].valorAtrasado += valorParcela;
           }
         }
@@ -164,8 +156,7 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
     const dayData = dailyData.find(d => d.nome === label);
     if (!dayData) return null;
 
-    const total = dayData.valor + dayData.valorPago + dayData.valorAtrasado + dayData.valorEmRevisao;
-    const numClientes = dayData.clientesAReceber.length;
+    const total = dayData.valorPendente + dayData.valorPago + dayData.valorAtrasado + dayData.valorHojePendente;
 
     return (
       <div className="bg-card/95 backdrop-blur-xl border border-border/50 rounded-xl p-4 shadow-2xl">
@@ -174,23 +165,16 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
         </p>
         {total > 0 ? (
           <div className="space-y-1.5">
-            {dayData.valor > 0 && (
+            {(dayData.valorPendente > 0 || dayData.valorHojePendente > 0) && (
               <p className="text-sm text-muted-foreground flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-primary" />
-                A receber: {formatCurrency(dayData.valor)}
-                {numClientes > 0 && <span className="text-xs opacity-70">({numClientes})</span>}
+                <span className="w-2 h-2 rounded-full bg-muted-foreground" />
+                Pendente: {formatCurrency(dayData.valorPendente + dayData.valorHojePendente)}
               </p>
             )}
             {dayData.valorPago > 0 && (
               <p className="text-sm text-muted-foreground flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span className="w-2 h-2 rounded-full bg-primary" />
                 Pago: {formatCurrency(dayData.valorPago)}
-              </p>
-            )}
-            {dayData.valorEmRevisao > 0 && (
-              <p className="text-sm text-warning flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-warning" />
-                Em revisão: {formatCurrency(dayData.valorEmRevisao)}
               </p>
             )}
             {dayData.valorAtrasado > 0 && (
@@ -239,22 +223,22 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
     });
   };
 
-  const { totalDiario, totalAtrasado, totalEmRevisao, totalPago } = useMemo(() => {
-    if (viewMode !== 'diario') return { totalDiario: 0, totalAtrasado: 0, totalEmRevisao: 0, totalPago: 0 };
+  const { totalDiario, totalAtrasado, totalPendente, totalPago } = useMemo(() => {
+    if (viewMode !== 'diario') return { totalDiario: 0, totalAtrasado: 0, totalPendente: 0, totalPago: 0 };
     
     let total = 0;
     let atrasado = 0;
-    let emRevisao = 0;
+    let pendente = 0;
     let pago = 0;
     
     dailyData.forEach(d => {
-      total += d.valor + d.valorPago + d.valorAtrasado + d.valorEmRevisao;
+      total += d.valorPendente + d.valorPago + d.valorAtrasado + d.valorHojePendente;
       atrasado += d.valorAtrasado;
-      emRevisao += d.valorEmRevisao;
+      pendente += d.valorPendente + d.valorHojePendente;
       pago += d.valorPago;
     });
     
-    return { totalDiario: total, totalAtrasado: atrasado, totalEmRevisao: emRevisao, totalPago: pago };
+    return { totalDiario: total, totalAtrasado: atrasado, totalPendente: pendente, totalPago: pago };
   }, [dailyData, viewMode]);
 
   const hoje = new Date();
@@ -398,27 +382,30 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
                     strokeDasharray="4 4"
                   />
                 )}
+                {/* Paid - GREEN */}
                 <Bar 
                   dataKey="valorPago" 
                   stackId="a" 
                   fill="hsl(142 76% 36%)"
-                  opacity={0.6}
                   radius={[0, 0, 0, 0]}
                 />
+                {/* Future pending - GRAY */}
                 <Bar 
-                  dataKey="valor" 
+                  dataKey="valorPendente" 
                   stackId="a" 
-                  fill="hsl(var(--primary))"
+                  fill="hsl(var(--muted-foreground))"
+                  opacity={0.4}
                   radius={[0, 0, 0, 0]}
                 />
-                <Bar dataKey="valorEmRevisao" stackId="a" radius={[0, 0, 0, 0]}>
-                  {dailyData.map((_, index) => (
-                    <Cell 
-                      key={`cell-revisao-${index}`} 
-                      fill="hsl(var(--warning))" 
-                    />
-                  ))}
-                </Bar>
+                {/* Today pending - GRAY */}
+                <Bar 
+                  dataKey="valorHojePendente" 
+                  stackId="a" 
+                  fill="hsl(var(--muted-foreground))"
+                  opacity={0.5}
+                  radius={[0, 0, 0, 0]}
+                />
+                {/* Overdue - RED */}
                 <Bar dataKey="valorAtrasado" stackId="a" radius={[4, 4, 0, 0]}>
                   {dailyData.map((_, index) => (
                     <Cell 
@@ -434,19 +421,13 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
         {viewMode === 'diario' && (
           <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-border/30">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-primary" />
-              <span className="text-xs text-muted-foreground">A receber</span>
+              <div className="w-3 h-3 rounded-full bg-muted-foreground/50" />
+              <span className="text-xs text-muted-foreground">Pendente</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-primary/60" />
+              <div className="w-3 h-3 rounded-full bg-primary" />
               <span className="text-xs text-muted-foreground">Pago</span>
             </div>
-            {totalEmRevisao > 0 && (
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-warning" />
-                <span className="text-xs text-muted-foreground">Em revisão</span>
-              </div>
-            )}
             {totalAtrasado > 0 && (
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-destructive" />
