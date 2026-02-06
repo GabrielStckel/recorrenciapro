@@ -69,12 +69,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Footer */}
       <footer className="border-t border-border/50 bg-card/30">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-1 text-sm text-muted-foreground">
             <p>© {new Date().getFullYear()} Recorrência Pro. Todos os direitos reservados.</p>
-            <p className="text-xs">
-              Feito com 💚 para gestão de recorrências
-            </p>
+            <span className="hidden sm:inline">•</span>
+            <p className="text-xs sm:text-sm">Feito com 💚 para gestão de recorrências</p>
           </div>
         </div>
       </footer>
