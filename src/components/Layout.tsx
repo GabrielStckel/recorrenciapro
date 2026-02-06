@@ -22,7 +22,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center">
-            <span className="font-bold text-xl bg-gradient-to-r from-primary to-emerald-400 bg-clip-text text-transparent">
+            <span className="font-bold text-base sm:text-xl bg-gradient-to-r from-primary to-emerald-400 bg-clip-text text-transparent whitespace-nowrap">
               Recorrência Pro
             </span>
           </div>
