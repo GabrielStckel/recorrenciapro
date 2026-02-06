@@ -137,10 +137,22 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
     const deveSerAtrasado = estaAtrasado || (foiMarcadoNaoPagouEsteMes && !pagouEsteMes);
 
     // Calcular dias em atraso sempre que estiver atrasado
+    // Deve calcular a partir da parcela mais antiga não paga, não do mês atual
     if (deveSerAtrasado) {
+      // A próxima parcela que deveria ter sido paga é parcelas_pagas + 1
+      // Calcular a data de vencimento dessa parcela
+      const parcelaAtrasada = cliente.parcelas_pagas + 1;
+      
+      // Quantos meses após a primeira data de vencimento?
+      const mesesAposInicio = parcelaAtrasada - 1;
+      const dataVencimentoAtrasada = getDataVencimentoNoMes(
+        primeiraDataVencimento.getFullYear(),
+        primeiraDataVencimento.getMonth() + mesesAposInicio
+      );
+      
       dias_em_atraso = Math.max(
         0,
-        Math.floor((hoje.getTime() - dataVencimentoMesAtual.getTime()) / (1000 * 60 * 60 * 24))
+        Math.floor((hoje.getTime() - dataVencimentoAtrasada.getTime()) / (1000 * 60 * 60 * 24))
       );
     }
 
