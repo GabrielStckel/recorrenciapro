@@ -26,15 +26,15 @@ export function KPICard({ title, value, icon: Icon, variant = 'default', subtitl
   };
 
   return (
-    <Card className={cn('glass transition-all hover:scale-[1.02]', variants[variant])}>
-      <CardContent className="p-4 sm:p-5">
-        <div className="flex items-center gap-3">
+    <Card className={cn('glass transition-all hover:scale-[1.02] h-full', variants[variant])}>
+      <CardContent className="p-4 sm:p-5 h-full">
+        <div className="flex items-center gap-3 h-full min-h-[72px]">
           <div className={cn('p-2.5 rounded-xl shrink-0', iconVariants[variant])}>
-            <Icon className="w-5 h-5" />
+            <Icon className="w-5 h-5 sm:w-5 sm:h-5" />
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs sm:text-sm text-muted-foreground truncate">{title}</p>
-            <p className="text-lg sm:text-xl font-bold text-foreground truncate">{value}</p>
+          <div className="min-w-0 flex-1 flex flex-col justify-center">
+            <p className="text-sm sm:text-sm text-muted-foreground truncate">{title}</p>
+            <p className="text-xl sm:text-xl font-bold text-foreground truncate">{value}</p>
             {subtitle && (
               <p className="text-xs text-muted-foreground">{subtitle}</p>
             )}
