@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { ClienteCalculado } from '@/types/cliente';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle, Eye, EyeOff } from 'lucide-react';
 
 interface ClientesAtrasadosProps {
   clientes: ClienteCalculado[];
@@ -9,6 +11,7 @@ interface ClientesAtrasadosProps {
 }
 
 export function ClientesAtrasados({ clientes, hideValues = false }: ClientesAtrasadosProps) {
+  const [hideNames, setHideNames] = useState(true); // Nomes ocultos por padrão
   const atrasados = clientes.filter((c) => c.status === 'Atrasado');
 
   const formatCurrency = (value: number) => {
@@ -29,9 +32,20 @@ export function ClientesAtrasados({ clientes, hideValues = false }: ClientesAtra
         <CardTitle className="text-base flex items-center gap-2 text-destructive">
           <AlertTriangle className="w-4 h-4" />
           Clientes em Atraso
-          <span className="ml-auto text-sm font-normal text-muted-foreground">
-            {atrasados.length} {atrasados.length === 1 ? 'cliente' : 'clientes'}
-          </span>
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-sm font-normal text-muted-foreground">
+              {atrasados.length} {atrasados.length === 1 ? 'cliente' : 'clientes'}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setHideNames(!hideNames)}
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              title={hideNames ? 'Mostrar nomes' : 'Ocultar nomes'}
+            >
+              {hideNames ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
@@ -39,18 +53,20 @@ export function ClientesAtrasados({ clientes, hideValues = false }: ClientesAtra
           {atrasados.map((cliente) => (
             <div
               key={cliente.id}
-              className="group p-2.5 rounded-lg bg-destructive/10 border border-destructive/20 hover:border-destructive/40 hover:bg-destructive/15 transition-all duration-200"
+              className="group p-2.5 lg:p-3.5 rounded-lg bg-destructive/10 border border-destructive/20 hover:border-destructive/40 hover:bg-destructive/15 transition-all duration-200"
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground truncate">{cliente.cliente_nome}</p>
-                  <p className="text-xs text-muted-foreground truncate">{cliente.produto}</p>
+                  <p className="text-sm lg:text-base font-medium text-foreground truncate">
+                    {hideNames ? '••••••••' : cliente.cliente_nome}
+                  </p>
+                  <p className="text-xs lg:text-sm text-muted-foreground truncate">{cliente.produto}</p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                  <Badge variant="destructive" className="text-[10px] lg:text-xs px-1.5 lg:px-2 py-0 lg:py-0.5">
                     {cliente.dias_em_atraso}d
                   </Badge>
-                  <p className="text-sm font-semibold text-foreground">
+                  <p className="text-sm lg:text-base font-semibold text-foreground">
                     {formatCurrency(cliente.valor_parcela)}
                   </p>
                 </div>
