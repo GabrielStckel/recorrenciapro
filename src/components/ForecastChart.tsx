@@ -255,11 +255,10 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
     return -1;
   }, [selectedMonth, viewMode]);
 
-  // Filter monthly data based on selection
-  const displayMonths = isMobile ? monthsToShow : 12; // Always 12 on desktop
+  // Filter monthly data based on toggle selection (works for both mobile and desktop)
   const filteredMonthlyData = useMemo(() => {
-    return monthlyData.slice(0, displayMonths);
-  }, [monthlyData, displayMonths]);
+    return monthlyData.slice(0, monthsToShow);
+  }, [monthlyData, monthsToShow]);
 
   // Calculate total for monthly view
   const totalMensal = useMemo(() => {
@@ -280,17 +279,62 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
             <p className="text-xl sm:text-2xl font-bold text-primary">
               {viewMode === 'mensal' ? formatCurrency(totalMensal) : formatCurrency(totalDiario)}
               <span className="text-xs sm:text-sm font-normal text-muted-foreground ml-2">
-                {viewMode === 'mensal' ? (isMobile ? `próximos ${monthsToShow}m` : 'próximos 12 meses') : 'previsão'}
+                {viewMode === 'mensal' ? `próximos ${monthsToShow} meses` : 'previsão'}
               </span>
             </p>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Mobile month toggle - only show in mensal view */}
+          <div className="flex items-center gap-2">
+            {/* Mensal/Diário toggle - LEFT */}
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+              <TabsList className="bg-secondary/50 p-1 h-9">
+                <TabsTrigger 
+                  value="mensal" 
+                  className="px-3 h-7 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm gap-1.5"
+                >
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Mensal</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="diario" 
+                  className="px-3 h-7 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm gap-1.5"
+                >
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Diário</span>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            {/* Month navigation for daily view */}
+            {viewMode === 'diario' && (
+              <div className="flex items-center gap-0.5 bg-secondary/50 rounded-lg p-0.5">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-7 w-7 hover:bg-background/50"
+                  onClick={() => navigateMonth('prev')}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <span className="text-xs font-medium min-w-[90px] sm:min-w-[110px] text-center capitalize px-1">
+                  {nomeMes}
+                </span>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-7 w-7 hover:bg-background/50"
+                  onClick={() => navigateMonth('next')}
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+
+            {/* 6m/12m toggle - RIGHT (both mobile and desktop) */}
             {viewMode === 'mensal' && (
-              <div className="flex sm:hidden bg-secondary/50 rounded-lg p-0.5">
+              <div className="flex bg-secondary/50 rounded-lg p-1 h-9">
                 <button
                   onClick={() => setMonthsToShow(6)}
-                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+                  className={`px-3 h-7 text-xs font-medium rounded-md transition-all ${
                     monthsToShow === 6
                       ? 'bg-background text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
@@ -300,7 +344,7 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
                 </button>
                 <button
                   onClick={() => setMonthsToShow(12)}
-                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+                  className={`px-3 h-7 text-xs font-medium rounded-md transition-all ${
                     monthsToShow === 12
                       ? 'bg-background text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
@@ -310,47 +354,6 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
                 </button>
               </div>
             )}
-            {viewMode === 'diario' && (
-              <div className="flex items-center gap-1 bg-secondary/50 rounded-lg p-1">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8 hover:bg-background/50"
-                  onClick={() => navigateMonth('prev')}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-sm font-medium min-w-[130px] text-center capitalize px-2">
-                  {nomeMes}
-                </span>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8 hover:bg-background/50"
-                  onClick={() => navigateMonth('next')}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
-              <TabsList className="bg-secondary/50 p-1">
-                <TabsTrigger 
-                  value="mensal" 
-                  className="px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm gap-2"
-                >
-                  <TrendingUp className="w-4 h-4" />
-                  <span className="hidden sm:inline">Mensal</span>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="diario" 
-                  className="px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm gap-2"
-                >
-                  <Calendar className="w-4 h-4" />
-                  <span className="hidden sm:inline">Diário</span>
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
           </div>
         </div>
       </CardHeader>
@@ -371,7 +374,7 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
                   axisLine={false}
                   tickLine={false}
                   dy={8}
-                  interval={isMobile && displayMonths > 6 ? 1 : 0}
+                  interval={isMobile && monthsToShow > 6 ? 1 : 0}
                 />
                 <YAxis
                   tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: isMobile ? 9 : 11 }}
