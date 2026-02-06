@@ -45,55 +45,55 @@ export function PagamentosEmRevisao({ clientes }: PagamentosEmRevisaoProps) {
           </span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-0 px-3 sm:px-6">
-        <div className="flex flex-col gap-2 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-3">
+      <CardContent className="pt-0">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {emRevisao.map((cliente) => (
             <div
               key={cliente.id}
-              className="group p-3 sm:p-4 rounded-xl bg-warning/10 border border-warning/20 hover:border-warning/40 hover:bg-warning/15 transition-all duration-200"
+              className="group p-2.5 rounded-lg bg-warning/10 border border-warning/20 hover:border-warning/40 hover:bg-warning/15 transition-all duration-200"
             >
-              <div className="flex items-start justify-between mb-2 sm:mb-3 gap-2">
+              <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-foreground text-sm sm:text-base truncate">{cliente.cliente_nome}</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground truncate">{cliente.produto}</p>
+                  <p className="text-sm font-medium text-foreground truncate">{cliente.cliente_nome}</p>
+                  <p className="text-xs text-muted-foreground truncate">{cliente.produto}</p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-[10px] sm:text-xs text-warning">
+                  <p className="text-[10px] text-warning">
                     Venc. {format(cliente.data_vencimento_mes_atual, 'dd/MM', { locale: ptBR })}
                   </p>
-                  <p className="text-base sm:text-lg font-semibold text-foreground">
+                  <p className="text-sm font-semibold text-foreground">
                     {formatCurrency(cliente.valor_parcela)}
                   </p>
                 </div>
               </div>
               
-              <div className="flex gap-1.5 sm:gap-2">
+              <div className="flex gap-1.5">
                 <Button
                   size="sm"
-                  className="flex-1 h-8 sm:h-9 text-xs sm:text-sm bg-success/10 text-success border border-success/20 hover:bg-success hover:text-success-foreground transition-colors px-2 sm:px-3"
+                  className="flex-1 h-7 text-xs bg-success/10 text-success border border-success/20 hover:bg-success hover:text-success-foreground transition-colors px-2"
                   onClick={() => handleConfirmar(cliente.id)}
                   disabled={confirmarPagamentoRevisao.isPending}
                 >
                   {confirmarPagamentoRevisao.isPending ? (
-                    <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                    <Loader2 className="w-3 h-3 animate-spin" />
                   ) : (
                     <>
-                      <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
+                      <CheckCircle className="w-3 h-3 mr-1" />
                       <span>Pagou</span>
                     </>
                   )}
                 </Button>
                 <Button
                   size="sm"
-                  className="flex-1 h-8 sm:h-9 text-xs sm:text-sm bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive hover:text-destructive-foreground transition-colors px-2 sm:px-3"
+                  className="flex-1 h-7 text-xs bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive hover:text-destructive-foreground transition-colors px-2"
                   onClick={() => handleNaoPagou(cliente.id)}
                   disabled={marcarComoAtrasado.isPending}
                 >
                   {marcarComoAtrasado.isPending ? (
-                    <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                    <Loader2 className="w-3 h-3 animate-spin" />
                   ) : (
                     <>
-                      <XCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
+                      <XCircle className="w-3 h-3 mr-1" />
                       <span>Não pagou</span>
                     </>
                   )}

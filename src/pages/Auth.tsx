@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
-import pixProLogo from '@/assets/pix-pro-logo.png';
+
 
 const authSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -78,9 +78,11 @@ export default function Auth() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
-          <img src={pixProLogo} alt="Pix Pro" className="w-20 h-20 mx-auto rounded-2xl mb-4 shadow-lg" />
-          <h1 className="text-3xl font-bold text-foreground">Pix Pro</h1>
-          <p className="text-muted-foreground mt-2">Sistema de controle de vendas</p>
+          <div className="w-16 h-16 mx-auto rounded-2xl mb-4 bg-gradient-to-br from-primary to-emerald-400 flex items-center justify-center shadow-lg shadow-primary/20">
+            <span className="text-2xl font-bold text-primary-foreground">R</span>
+          </div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-emerald-400 bg-clip-text text-transparent">Recorrência Pro</h1>
+          <p className="text-muted-foreground mt-2">Sistema de controle de recorrências</p>
         </div>
 
         <Card className="glass">
