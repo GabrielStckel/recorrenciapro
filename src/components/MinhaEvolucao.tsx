@@ -70,17 +70,17 @@ export function MinhaEvolucao({ totalRecebido, hideValues = false, isOpen = fals
       )} />
       
       <Collapsible open={isOpen} onOpenChange={onOpenChange}>
-        <CardHeader className="pb-3 relative">
+        <CardHeader className="py-4 relative">
           <CollapsibleTrigger asChild>
-            <button className="flex items-center justify-between w-full text-left group">
+            <button className="flex items-center justify-between w-full text-left group min-h-[48px]">
               <div className="flex items-center gap-3">
                 <div className={cn(
-                  "p-2 rounded-xl bg-gradient-to-br transition-all duration-300 group-hover:scale-110",
+                  "p-2.5 rounded-xl bg-gradient-to-br transition-all duration-300 group-hover:scale-110",
                   nivelAtual.bgGradient
                 )}>
                   <span className={nivelAtual.cor}>{nivelAtual.icon}</span>
                 </div>
-                <div>
+                <div className="flex flex-col justify-center">
                   <CardTitle className="text-base font-semibold">Minha Evolução</CardTitle>
                   <p className="text-xs text-muted-foreground">{nivelAtual.nome}</p>
                 </div>

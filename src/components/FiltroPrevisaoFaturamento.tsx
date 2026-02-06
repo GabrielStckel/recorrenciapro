@@ -105,12 +105,17 @@ export function FiltroPrevisaoFaturamento({ clientes, hideValues = false, isOpen
   return (
     <Card className="glass">
       <Collapsible open={isOpen} onOpenChange={onOpenChange}>
-        <CardHeader className="pb-3">
+        <CardHeader className="py-4">
           <CollapsibleTrigger asChild>
-            <button className="flex items-center justify-between w-full text-left group">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-primary" />
-                <CardTitle className="text-lg">Previsão por Período</CardTitle>
+            <button className="flex items-center justify-between w-full text-left group min-h-[48px]">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-primary/20">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex flex-col justify-center">
+                  <CardTitle className="text-base font-semibold">Previsão por Período</CardTitle>
+                  <p className="text-xs text-muted-foreground">Atualizado em tempo real</p>
+                </div>
               </div>
               <ChevronDown className={cn(
                 "h-4 w-4 text-muted-foreground transition-transform duration-200",
@@ -118,7 +123,6 @@ export function FiltroPrevisaoFaturamento({ clientes, hideValues = false, isOpen
               )} />
             </button>
           </CollapsibleTrigger>
-          <p className="text-xs text-muted-foreground">Atualizado em tempo real</p>
         </CardHeader>
         <CollapsibleContent>
           <CardContent className="space-y-4 pt-0">
