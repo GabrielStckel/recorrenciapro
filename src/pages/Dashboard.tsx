@@ -24,6 +24,7 @@ export default function Dashboard() {
   const { hideValues, toggleHideValues } = useHideValues();
   const [evolucaoOpen, setEvolucaoOpen] = useState(false);
   const [previsaoOpen, setPrevisaoOpen] = useState(false);
+  const [hideClientNames, setHideClientNames] = useState(true); // Nomes ocultos por padrão
 
   const formatCurrency = (value: number) => {
     if (hideValues) return '••••••';
@@ -198,7 +199,15 @@ export default function Dashboard() {
             icon={Calendar} 
             variant={aReceberNoMes > 0 ? 'default' : 'success'} 
           />
-          <KPICard title="Clientes Atrasados" value={clientesAtrasados.length.toString()} icon={AlertTriangle} variant={clientesAtrasados.length > 0 ? 'destructive' : 'default'} />
+          <KPICard 
+            title="Clientes Atrasados" 
+            value={clientesAtrasados.length.toString()} 
+            icon={AlertTriangle} 
+            variant={clientesAtrasados.length > 0 ? 'destructive' : 'default'}
+            showPrivacyToggle={clientesAtrasados.length > 0}
+            isPrivate={hideClientNames}
+            onPrivacyToggle={() => setHideClientNames(!hideClientNames)}
+          />
           <KPICard title="Valor em Atraso" value={formatCurrency(valorEmAtraso)} icon={Clock} variant={valorEmAtraso > 0 ? 'warning' : 'default'} />
         </div>
 
@@ -227,7 +236,7 @@ export default function Dashboard() {
         </div>
 
         {/* Clientes Atrasados - abaixo do gráfico */}
-        <ClientesAtrasados clientes={clientesFiltrados} hideValues={hideValues} />
+        <ClientesAtrasados clientes={clientesFiltrados} hideValues={hideValues} hideNames={hideClientNames} />
       </div>
     </Layout>
   );

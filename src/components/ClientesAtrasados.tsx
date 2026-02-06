@@ -1,17 +1,15 @@
-import { useState } from 'react';
 import { ClienteCalculado } from '@/types/cliente';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 interface ClientesAtrasadosProps {
   clientes: ClienteCalculado[];
   hideValues?: boolean;
+  hideNames?: boolean;
 }
 
-export function ClientesAtrasados({ clientes, hideValues = false }: ClientesAtrasadosProps) {
-  const [hideNames, setHideNames] = useState(true); // Nomes ocultos por padrão
+export function ClientesAtrasados({ clientes, hideValues = false, hideNames = true }: ClientesAtrasadosProps) {
   const atrasados = clientes.filter((c) => c.status === 'Atrasado');
 
   const formatCurrency = (value: number) => {
@@ -32,20 +30,9 @@ export function ClientesAtrasados({ clientes, hideValues = false }: ClientesAtra
         <CardTitle className="text-base flex items-center gap-2 text-destructive">
           <AlertTriangle className="w-4 h-4" />
           Clientes em Atraso
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-sm font-normal text-muted-foreground">
-              {atrasados.length} {atrasados.length === 1 ? 'cliente' : 'clientes'}
-            </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setHideNames(!hideNames)}
-              className="h-7 w-7 text-muted-foreground hover:text-foreground"
-              title={hideNames ? 'Mostrar nomes' : 'Ocultar nomes'}
-            >
-              {hideNames ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </Button>
-          </div>
+          <span className="ml-auto text-sm font-normal text-muted-foreground">
+            {atrasados.length} {atrasados.length === 1 ? 'cliente' : 'clientes'}
+          </span>
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
