@@ -1,6 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { LucideIcon } from 'lucide-react';
+import { LucideIcon, Eye, EyeOff } from 'lucide-react';
 
 interface KPICardProps {
   title: string;
@@ -8,9 +9,21 @@ interface KPICardProps {
   icon: LucideIcon;
   variant?: 'default' | 'success' | 'warning' | 'destructive';
   subtitle?: string;
+  showPrivacyToggle?: boolean;
+  isPrivate?: boolean;
+  onPrivacyToggle?: () => void;
 }
 
-export function KPICard({ title, value, icon: Icon, variant = 'default', subtitle }: KPICardProps) {
+export function KPICard({ 
+  title, 
+  value, 
+  icon: Icon, 
+  variant = 'default', 
+  subtitle,
+  showPrivacyToggle = false,
+  isPrivate = false,
+  onPrivacyToggle,
+}: KPICardProps) {
   const variants = {
     default: 'bg-card',
     success: 'bg-success/10 border-success/20',
@@ -39,6 +52,20 @@ export function KPICard({ title, value, icon: Icon, variant = 'default', subtitl
               <p className="text-xs text-muted-foreground">{subtitle}</p>
             )}
           </div>
+          {showPrivacyToggle && onPrivacyToggle && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                onPrivacyToggle();
+              }}
+              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+              title={isPrivate ? 'Mostrar nomes' : 'Ocultar nomes'}
+            >
+              {isPrivate ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
