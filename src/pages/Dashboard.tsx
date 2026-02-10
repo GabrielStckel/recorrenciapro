@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useClientes } from '@/hooks/useClientes';
 import { useHideValues } from '@/hooks/useHideValues';
 import { Layout } from '@/components/Layout';
@@ -8,7 +9,7 @@ import { ClientesAtrasados } from '@/components/ClientesAtrasados';
 import { PagamentosEmRevisao } from '@/components/PagamentosEmRevisao';
 import { MinhaEvolucao } from '@/components/MinhaEvolucao';
 import { FiltroPrevisaoFaturamento } from '@/components/FiltroPrevisaoFaturamento';
-import { DollarSign, TrendingUp, AlertTriangle, Clock, Loader2, Calendar, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertTriangle, Clock, Loader2, Calendar, CheckCircle, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -20,12 +21,23 @@ import { Button } from '@/components/ui/button';
 
 export default function Dashboard() {
   const { clientes, isLoading, entrarEmRevisao } = useClientes();
+  const queryClient = useQueryClient();
   const [selectedProduto, setSelectedProduto] = useState<string>('Todos');
   const { hideValues, toggleHideValues } = useHideValues();
   const [evolucaoOpen, setEvolucaoOpen] = useState(false);
   const [previsaoOpen, setPrevisaoOpen] = useState(false);
-  const [atrasadosOpen, setAtrasadosOpen] = useState(false); // Fechado por padrão
-  const [hideClientNames, setHideClientNames] = useState(true); // Nomes ocultos por padrão
+  const [atrasadosOpen, setAtrasadosOpen] = useState(false);
+  const [hideClientNames, setHideClientNames] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    // Limpa o set de clientes revisados para reavaliar todos
+    clientesRevisadosRef.current.clear();
+    await queryClient.invalidateQueries({ queryKey: ['clientes'] });
+    // Pequeno delay para feedback visual
+    setTimeout(() => setIsRefreshing(false), 600);
+  };
 
   const formatCurrency = (value: number) => {
     if (hideValues) return '••••••';
@@ -165,6 +177,16 @@ export default function Dashboard() {
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="h-9 w-9 text-muted-foreground hover:text-foreground"
+              title="Atualizar dashboard"
+            >
+              <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
