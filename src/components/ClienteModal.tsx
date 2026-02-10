@@ -165,12 +165,18 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
         status_cliente: formData.status_cliente,
       };
 
-      // Mantém campos automáticos ao editar; define defaults ao criar
+      // Ao editar, se dia_vencimento ou data_inicio mudaram, limpar estado de revisão
+      // para que o sistema reavalie o status com base nas novas datas
+      const datesChanged = cliente && (
+        diaVencimentoParsed !== cliente.dia_vencimento || 
+        formData.data_inicio !== cliente.data_inicio
+      );
+
       const data = {
         ...baseData,
         data_ultimo_pagamento: cliente ? cliente.data_ultimo_pagamento : null,
-        em_revisao: cliente ? cliente.em_revisao : false,
-        mes_referencia_revisao: cliente ? cliente.mes_referencia_revisao : null,
+        em_revisao: cliente ? (datesChanged ? false : cliente.em_revisao) : false,
+        mes_referencia_revisao: cliente ? (datesChanged ? null : cliente.mes_referencia_revisao) : null,
       };
 
       const result = clienteSchema.safeParse(data);
