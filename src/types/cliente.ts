@@ -131,10 +131,15 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
       pagouEsteMes = ultimoPagamento.getMonth() === mesAtual && ultimoPagamento.getFullYear() === anoAtual;
     }
 
+    // "Não pagou" só é válido se o vencimento deste mês já passou
+    // (se o vencimento foi alterado para o futuro, o flag anterior não se aplica)
+    const vencimentoMesAtualJaPassou = hoje.getTime() >= dataVencimentoMesAtual.getTime();
+    const foiMarcadoNaoPagouValido = foiMarcadoNaoPagouEsteMes && vencimentoMesAtualJaPassou;
+
     // Cliente está atrasado se:
     // 1. Parcelas pagas < parcelas que deveriam estar pagas, OU
-    // 2. Foi marcado como "não pagou" este mês E não tem pagamento registrado este mês
-    const deveSerAtrasado = estaAtrasado || (foiMarcadoNaoPagouEsteMes && !pagouEsteMes);
+    // 2. Foi marcado como "não pagou" este mês E vencimento já passou E não pagou
+    const deveSerAtrasado = estaAtrasado || (foiMarcadoNaoPagouValido && !pagouEsteMes);
 
     // Calcular dias em atraso sempre que estiver atrasado
     // Deve calcular a partir da parcela mais antiga não paga, não do mês atual
