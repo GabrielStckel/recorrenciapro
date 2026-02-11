@@ -1,9 +1,14 @@
+import { useState } from 'react';
 import { ClienteCalculado } from '@/types/cliente';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { AlertTriangle, ChevronDown } from 'lucide-react';
+import { AlertTriangle, ChevronDown, CheckCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useClientes } from '@/hooks/useClientes';
+import { useUserSettings } from '@/hooks/useUserSettings';
+import { PinDialog } from '@/components/PinDialog';
 
 interface ClientesAtrasadosProps {
   clientes: ClienteCalculado[];
@@ -21,6 +26,33 @@ export function ClientesAtrasados({
   onOpenChange,
 }: ClientesAtrasadosProps) {
   const atrasados = clientes.filter((c) => c.status === 'Atrasado');
+  const { confirmarPagamentoRevisao } = useClientes();
+  const { hasPin, verifyPin } = useUserSettings();
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [pinError, setPinError] = useState('');
+  const [pendingClienteId, setPendingClienteId] = useState<string | null>(null);
+
+  const handleConfirmarClick = (clienteId: string) => {
+    if (hasPin) {
+      setPendingClienteId(clienteId);
+      setPinError('');
+      setPinDialogOpen(true);
+    } else {
+      confirmarPagamentoRevisao.mutate({ clienteId, observacao: 'Pagamento confirmado via clientes atrasados' });
+    }
+  };
+
+  const handlePinConfirm = (pin: string) => {
+    if (verifyPin(pin)) {
+      setPinDialogOpen(false);
+      if (pendingClienteId) {
+        confirmarPagamentoRevisao.mutate({ clienteId: pendingClienteId, observacao: 'Pagamento confirmado via clientes atrasados' });
+        setPendingClienteId(null);
+      }
+    } else {
+      setPinError('PIN incorreto');
+    }
+  };
 
   const formatCurrency = (value: number) => {
     if (hideValues) return '••••••';
@@ -84,12 +116,38 @@ export function ClientesAtrasados({
                       </p>
                     </div>
                   </div>
+                  <div className="mt-2">
+                    <Button
+                      size="sm"
+                      className="w-full h-7 text-xs bg-success/10 text-success border border-success/20 hover:bg-success hover:text-success-foreground transition-colors"
+                      onClick={() => handleConfirmarClick(cliente.id)}
+                      disabled={confirmarPagamentoRevisao.isPending}
+                    >
+                      {confirmarPagamentoRevisao.isPending && pendingClienteId === cliente.id ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <>
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          <span>Confirmar Pagamento</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
           </CardContent>
         </CollapsibleContent>
       </Card>
+
+      <PinDialog
+        open={pinDialogOpen}
+        onOpenChange={setPinDialogOpen}
+        onConfirm={handlePinConfirm}
+        title="Confirmar Pagamento"
+        description="Digite seu PIN para confirmar o pagamento"
+        error={pinError}
+      />
     </Collapsible>
   );
 }
