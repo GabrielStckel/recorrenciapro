@@ -31,6 +31,21 @@ function parseBrazilianCurrency(value: string): number {
   return parseFloat(cleaned);
 }
 
+// Formata centavos como moeda brasileira (ex: 1000 centavos → "10,00")
+function formatCurrencyInput(cents: number): string {
+  if (cents === 0) return '';
+  const reais = (cents / 100).toFixed(2);
+  const [intPart, decPart] = reais.split('.');
+  const intFormatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${intFormatted},${decPart}`;
+}
+
+// Converte string formatada de volta para centavos
+function toCents(formatted: string): number {
+  const digits = formatted.replace(/\D/g, '');
+  return parseInt(digits, 10) || 0;
+}
+
 function formatDateOnlyISO(date: Date): string {
   const ano = date.getFullYear();
   const mes = String(date.getMonth() + 1).padStart(2, '0');
@@ -86,7 +101,7 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
         cliente_nome: cliente.cliente_nome,
         whatsapp: cliente.whatsapp || '',
         produto: cliente.produto,
-        valor_total: cliente.valor_total.toString(),
+        valor_total: formatCurrencyInput(Math.round(cliente.valor_total * 100)),
         total_parcelas: cliente.total_parcelas.toString(),
         parcelas_pagas: cliente.parcelas_pagas.toString(),
         dia_vencimento: cliente.dia_vencimento.toString(),
@@ -305,9 +320,13 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
               <Input
                 id="valor_total"
                 type="text"
+                inputMode="numeric"
                 value={formData.valor_total}
-                onChange={(e) => setFormData({ ...formData, valor_total: e.target.value })}
-                placeholder="1636,20"
+                onChange={(e) => {
+                  const cents = toCents(e.target.value);
+                  setFormData({ ...formData, valor_total: formatCurrencyInput(cents) });
+                }}
+                placeholder="0,00"
               />
             </div>
 
