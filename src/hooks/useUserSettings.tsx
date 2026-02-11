@@ -7,6 +7,7 @@ interface UserSettings {
   id: string;
   user_id: string;
   payment_pin: string | null;
+  avatar_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -69,12 +70,39 @@ export function useUserSettings() {
   };
 
   const hasPin = !!settings?.payment_pin;
+  const avatarUrl = settings?.avatar_url || null;
+
+  const updateAvatar = useMutation({
+    mutationFn: async (url: string) => {
+      if (settings) {
+        const { error } = await supabase
+          .from('user_settings')
+          .update({ avatar_url: url })
+          .eq('user_id', user!.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('user_settings')
+          .insert({ user_id: user!.id, avatar_url: url });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user-settings'] });
+      toast({ title: 'Avatar atualizado!' });
+    },
+    onError: (error) => {
+      toast({ title: 'Erro ao atualizar avatar', description: error.message, variant: 'destructive' });
+    },
+  });
 
   return {
     settings,
     isLoading,
     hasPin,
+    avatarUrl,
     createOrUpdatePin,
+    updateAvatar,
     verifyPin,
   };
 }

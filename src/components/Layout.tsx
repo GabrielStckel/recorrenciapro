@@ -1,8 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/useAuth';
-import { LayoutDashboard, Users, History, HelpCircle, LogOut, UserCircle } from 'lucide-react';
+import { useUserSettings } from '@/hooks/useUserSettings';
+import { LayoutDashboard, Users, History, HelpCircle, LogOut } from 'lucide-react';
 
 
 const navItems = [
@@ -10,12 +12,13 @@ const navItems = [
   { href: '/clientes', label: 'Clientes', icon: Users },
   { href: '/historico', label: 'Histórico', icon: History },
   { href: '/como-usar', label: 'Como Usar', icon: HelpCircle },
-  { href: '/perfil', label: 'Perfil', icon: UserCircle },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { signOut, user } = useAuth();
+  const { avatarUrl } = useUserSettings();
+  const initials = user?.email?.slice(0, 2).toUpperCase() || '??';
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -52,11 +55,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </nav>
 
           {/* User */}
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground hidden md:block">
-              {user?.email}
-            </span>
-            <Button variant="ghost" size="icon" onClick={signOut} title="Sair">
+          <div className="flex items-center gap-2">
+            <Link to="/perfil" title="Meu Perfil">
+              <Avatar className={cn(
+                "w-8 h-8 cursor-pointer ring-2 ring-transparent hover:ring-primary/50 transition-all",
+                location.pathname === '/perfil' && "ring-primary"
+              )}>
+                {avatarUrl && <AvatarImage src={avatarUrl} alt="Avatar" />}
+                <AvatarFallback className="text-xs bg-primary/20 text-primary font-semibold">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
+            <Button variant="ghost" size="icon" onClick={signOut} title="Sair" className="h-8 w-8">
               <LogOut className="w-4 h-4" />
             </Button>
           </div>

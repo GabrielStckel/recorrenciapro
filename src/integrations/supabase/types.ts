@@ -176,6 +176,7 @@ export type Database = {
       }
       user_settings: {
         Row: {
+          avatar_url: string | null
           created_at: string
           id: string
           payment_pin: string | null
@@ -183,6 +184,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           id?: string
           payment_pin?: string | null
@@ -190,6 +192,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           id?: string
           payment_pin?: string | null

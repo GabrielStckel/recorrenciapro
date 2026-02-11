@@ -1,0 +1,1 @@
+ALTER TABLE public.user_settings ADD COLUMN avatar_url text DEFAULT null;
