@@ -5,7 +5,7 @@ const STORAGE_KEY = 'hideValuesPreference';
 export function useHideValues() {
   const [hideValues, setHideValuesState] = useState<boolean>(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored === 'true';
+    return stored === null ? true : stored === 'true';
   });
 
   useEffect(() => {
