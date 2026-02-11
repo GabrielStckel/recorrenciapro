@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Clientes from "./pages/Clientes";
 import Historico from "./pages/Historico";
 import ComoUsar from "./pages/ComoUsar";
+import Perfil from "./pages/Perfil";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ function AppRoutes() {
       <Route path="/clientes" element={<ProtectedRoute><Clientes /></ProtectedRoute>} />
       <Route path="/historico" element={<ProtectedRoute><Historico /></ProtectedRoute>} />
       <Route path="/como-usar" element={<ProtectedRoute><ComoUsar /></ProtectedRoute>} />
+      <Route path="/perfil" element={<ProtectedRoute><Perfil /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
