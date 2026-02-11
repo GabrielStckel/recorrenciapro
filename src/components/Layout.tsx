@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { LayoutDashboard, Users, History, HelpCircle, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, History, HelpCircle, LogOut, UserCircle } from 'lucide-react';
 
 
 const navItems = [
@@ -10,6 +10,7 @@ const navItems = [
   { href: '/clientes', label: 'Clientes', icon: Users },
   { href: '/historico', label: 'Histórico', icon: History },
   { href: '/como-usar', label: 'Como Usar', icon: HelpCircle },
+  { href: '/perfil', label: 'Perfil', icon: UserCircle },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
