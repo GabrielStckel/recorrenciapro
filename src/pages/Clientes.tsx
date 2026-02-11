@@ -9,14 +9,8 @@ import { HistoricoModal } from '@/components/HistoricoModal';
 import { MovimentosModal } from '@/components/MovimentosModal';
 import { SetupPinDialog } from '@/components/SetupPinDialog';
 import { Button } from '@/components/ui/button';
-import { Plus, Loader2, Eye, EyeOff, Lock, Settings } from 'lucide-react';
+import { Plus, Loader2, Eye, EyeOff } from 'lucide-react';
 import { ClienteCalculado } from '@/types/cliente';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 export default function Clientes() {
   const { clientes, isLoading } = useClientes();
@@ -58,28 +52,15 @@ export default function Clientes() {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Clientes</h1>
           <div className="flex items-center gap-2">
-            {/* Settings dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 text-muted-foreground hover:text-foreground"
-                >
-                  <Settings className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={toggleHideValues}>
-                  {hideValues ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
-                  {hideValues ? 'Mostrar valores' : 'Ocultar valores'}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setPinSetupOpen(true)}>
-                  <Lock className="w-4 h-4 mr-2" />
-                  {hasPin ? 'Alterar PIN' : 'Configurar PIN'}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleHideValues}
+              className="h-9 w-9 text-muted-foreground hover:text-foreground"
+              title={hideValues ? 'Mostrar valores' : 'Ocultar valores'}
+            >
+              {hideValues ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+            </Button>
             <Button onClick={() => { setSelectedCliente(null); setModalOpen(true); }}><Plus className="w-4 h-4 mr-2" />Novo Cliente</Button>
           </div>
         </div>
