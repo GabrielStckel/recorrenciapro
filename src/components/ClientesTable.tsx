@@ -406,7 +406,7 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos, hideV
                     key={cliente.id}
                     className={cn(
                       'transition-colors',
-                      cliente.status === 'Atrasado' && 'bg-destructive/10',
+                      cliente.status === 'Atrasado' && 'bg-destructive/20 border-l-2 border-l-destructive',
                       cliente.status_cliente === 'CANCELADO' && 'opacity-60'
                     )}
                   >
