@@ -132,6 +132,9 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
           } else if (isHoje) {
             // Today and not paid yet = GRAY (pending for today)
             dias[diaIndex].valorHojePendente += valorParcela;
+          } else if (cliente.em_revisao) {
+            // In review = GRAY (pending, not overdue yet)
+            dias[diaIndex].valorHojePendente += valorParcela;
           } else {
             // Past due date and not paid = RED (overdue)
             dias[diaIndex].valorAtrasado += valorParcela;
