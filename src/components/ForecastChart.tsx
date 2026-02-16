@@ -84,6 +84,7 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
       valorPago: number; // Paid (green)
       valorAtrasado: number; // Overdue (red)
       valorHojePendente: number; // Today's pending (gray until marked)
+      valorEmRevisao: number; // In review (yellow/warning)
       dia: number; 
       isHoje: boolean;
     }[] = [];
@@ -95,6 +96,7 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
         valorPago: 0,
         valorAtrasado: 0,
         valorHojePendente: 0,
+        valorEmRevisao: 0,
         dia: d,
         isHoje: isMesAtual && d === hoje.getDate(),
       });
@@ -133,8 +135,8 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
             // Today and not paid yet = GRAY (pending for today)
             dias[diaIndex].valorHojePendente += valorParcela;
           } else if (cliente.em_revisao) {
-            // In review = GRAY (pending, not overdue yet)
-            dias[diaIndex].valorHojePendente += valorParcela;
+            // In review = YELLOW (warning)
+            dias[diaIndex].valorEmRevisao += valorParcela;
           } else {
             // Past due date and not paid = RED (overdue)
             dias[diaIndex].valorAtrasado += valorParcela;
@@ -162,7 +164,7 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
     const dayData = dailyData.find(d => d.nome === label);
     if (!dayData) return null;
 
-    const total = dayData.valorPendente + dayData.valorPago + dayData.valorAtrasado + dayData.valorHojePendente;
+    const total = dayData.valorPendente + dayData.valorPago + dayData.valorAtrasado + dayData.valorHojePendente + dayData.valorEmRevisao;
 
     return (
       <div className="bg-card/95 backdrop-blur-xl border border-border/50 rounded-xl p-4 shadow-2xl">
@@ -181,6 +183,12 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
               <p className="text-sm text-muted-foreground flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-primary" />
                 Pago: {formatCurrency(dayData.valorPago)}
+              </p>
+            )}
+            {dayData.valorEmRevisao > 0 && (
+              <p className="text-sm text-warning flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-warning" />
+                Em revisão: {formatCurrency(dayData.valorEmRevisao)}
               </p>
             )}
             {dayData.valorAtrasado > 0 && (
@@ -238,7 +246,7 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
     let pago = 0;
     
     dailyData.forEach(d => {
-      total += d.valorPendente + d.valorPago + d.valorAtrasado + d.valorHojePendente;
+      total += d.valorPendente + d.valorPago + d.valorAtrasado + d.valorHojePendente + d.valorEmRevisao;
       atrasado += d.valorAtrasado;
       pendente += d.valorPendente + d.valorHojePendente;
       pago += d.valorPago;
@@ -448,6 +456,14 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
                   opacity={0.5}
                   radius={[0, 0, 0, 0]}
                 />
+                {/* In review - YELLOW/WARNING */}
+                <Bar 
+                  dataKey="valorEmRevisao" 
+                  stackId="a" 
+                  fill="hsl(var(--warning))"
+                  opacity={0.8}
+                  radius={[0, 0, 0, 0]}
+                />
                 {/* Overdue - RED */}
                 <Bar dataKey="valorAtrasado" stackId="a" radius={[4, 4, 0, 0]}>
                   {dailyData.map((_, index) => (
@@ -466,6 +482,10 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-primary" />
               <span className="text-xs text-muted-foreground">Pago</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-warning" />
+              <span className="text-xs text-muted-foreground">Em revisão</span>
             </div>
             {totalAtrasado > 0 && (
               <div className="flex items-center gap-2">
