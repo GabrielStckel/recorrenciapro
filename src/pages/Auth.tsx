@@ -38,30 +38,45 @@ export default function Auth() {
       }
 
       setLoading(true);
-      const { error } = type === 'login' 
-        ? await signIn(email, password)
-        : await signUp(email, password);
-
-      if (error) {
-        let message = error.message;
-        if (error.message.includes('Invalid login credentials')) {
-          message = 'Email ou senha incorretos';
-        } else if (error.message.includes('User already registered')) {
-          message = 'Este email já está cadastrado';
-        }
-        toast({
-          title: 'Erro',
-          description: message,
-          variant: 'destructive',
-        });
-      } else {
-        if (type === 'signup') {
+      
+      if (type === 'login') {
+        const { error } = await signIn(email, password);
+        if (error) {
+          let message = error.message;
+          if (error.message.includes('Invalid login credentials')) {
+            message = 'Email ou senha incorretos';
+          } else if (error.message.includes('Email not confirmed')) {
+            message = 'Verifique seu email antes de fazer login. Confira sua caixa de entrada.';
+          }
           toast({
-            title: 'Conta criada!',
-            description: 'Você já pode fazer login.',
+            title: 'Erro',
+            description: message,
+            variant: 'destructive',
           });
+        } else {
+          navigate('/');
         }
-        navigate('/');
+      } else {
+        const { error } = await signUp(email, password);
+        if (error) {
+          let message = error.message;
+          if (error.message.includes('User already registered')) {
+            message = 'Este email já está cadastrado';
+          }
+          toast({
+            title: 'Erro',
+            description: message,
+            variant: 'destructive',
+          });
+        } else {
+          toast({
+            title: 'Verifique seu email ✉️',
+            description: 'Enviamos um link de confirmação para ' + email + '. Clique no link para ativar sua conta.',
+            duration: 10000,
+          });
+          setEmail('');
+          setPassword('');
+        }
       }
     } catch (err) {
       toast({
