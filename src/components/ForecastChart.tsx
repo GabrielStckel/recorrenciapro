@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -20,18 +20,29 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
   const [selectedMonth, setSelectedMonth] = useState(() => new Date());
   const [monthsToShow, setMonthsToShow] = useState<6 | 12>(12); // Default 12 for desktop
 
-  // Monthly forecast data (existing logic)
+  const parseDateOnlyISOLocal = (dateStr: string): Date => {
+    const [ano, mes, dia] = dateStr.split('-').map(Number);
+    return new Date(ano, mes - 1, dia);
+  };
+
+  // Monthly forecast data with stacked current month
   const monthlyData = useMemo(() => {
     const hoje = new Date();
-    const meses: { nome: string; valor: number; mes: number; ano: number }[] = [];
+    const mesAtualIdx = hoje.getMonth();
+    const anoAtualIdx = hoje.getFullYear();
+    const meses: { nome: string; valor: number; valorRecebido: number; valorAReceber: number; mes: number; ano: number; isMesAtual: boolean }[] = [];
 
     for (let i = 0; i < 12; i++) {
       const data = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1);
+      const isMesAtual = data.getMonth() === mesAtualIdx && data.getFullYear() === anoAtualIdx;
       meses.push({
         nome: data.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }),
         valor: 0,
+        valorRecebido: 0,
+        valorAReceber: 0,
         mes: data.getMonth(),
         ano: data.getFullYear(),
+        isMesAtual,
       });
     }
 
@@ -60,7 +71,22 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
         const mesIndex = meses.findIndex((m) => m.mes === due.getMonth() && m.ano === due.getFullYear());
 
         if (mesIndex !== -1) {
-          meses[mesIndex].valor += valorParcela;
+          const mesData = meses[mesIndex];
+          if (mesData.isMesAtual) {
+            // For current month: check if client already paid this month
+            const ultimoPagamento = cliente.data_ultimo_pagamento ? parseDateOnlyISOLocal(cliente.data_ultimo_pagamento) : null;
+            const pagouNesteMes = ultimoPagamento
+              ? ultimoPagamento.getMonth() === mesAtualIdx && ultimoPagamento.getFullYear() === anoAtualIdx
+              : false;
+
+            if (pagouNesteMes) {
+              mesData.valorRecebido += valorParcela;
+            } else {
+              mesData.valorAReceber += valorParcela;
+            }
+          } else {
+            meses[mesIndex].valor += valorParcela;
+          }
         }
       }
     });
@@ -213,6 +239,35 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
   const MonthlyTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
     
+    const dataPoint = filteredMonthlyData.find(d => d.nome === label);
+    const isCurrentMonth = dataPoint?.isMesAtual;
+    
+    if (isCurrentMonth && dataPoint) {
+      const total = dataPoint.valorRecebido + dataPoint.valorAReceber;
+      return (
+        <div className="bg-card/95 backdrop-blur-xl border border-border/50 rounded-xl p-4 shadow-2xl">
+          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{label} <span className="text-primary">(atual)</span></p>
+          <div className="space-y-1.5 mt-2">
+            {dataPoint.valorRecebido > 0 && (
+              <p className="text-sm flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'hsl(142 76% 36%)' }} />
+                Recebido: {formatCurrency(dataPoint.valorRecebido)}
+              </p>
+            )}
+            {dataPoint.valorAReceber > 0 && (
+              <p className="text-sm flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+                A receber: {formatCurrency(dataPoint.valorAReceber)}
+              </p>
+            )}
+            <div className="pt-2 mt-1 border-t border-border/50">
+              <p className="text-xl font-bold text-foreground">{formatCurrency(total)}</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div className="bg-card/95 backdrop-blur-xl border border-border/50 rounded-xl p-4 shadow-2xl">
         <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
@@ -273,7 +328,7 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
 
   // Calculate total for monthly view
   const totalMensal = useMemo(() => {
-    return filteredMonthlyData.reduce((sum, m) => sum + m.valor, 0);
+    return filteredMonthlyData.reduce((sum, m) => sum + m.valor + m.valorRecebido + m.valorAReceber, 0);
   }, [filteredMonthlyData]);
 
   return (
@@ -372,13 +427,7 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
         <div className="h-[260px] sm:h-[320px]">
           <ResponsiveContainer width="100%" height="100%">
             {viewMode === 'mensal' ? (
-              <AreaChart data={filteredMonthlyData} margin={{ top: 10, right: 10, left: -10, bottom: 10 }}>
-                <defs>
-                  <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
-                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
+              <BarChart data={filteredMonthlyData} margin={{ top: 10, right: 10, left: -10, bottom: 10 }}>
                 <XAxis
                   dataKey="nome"
                   tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: isMobile ? 9 : 11 }}
@@ -395,17 +444,30 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
                   dx={-5}
                   width={35}
                 />
-                <Tooltip content={<MonthlyTooltip />} cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '4 4' }} />
-                <Area 
-                  type="monotone" 
+                <Tooltip content={<MonthlyTooltip />} cursor={{ fill: 'hsl(var(--primary))', opacity: 0.05 }} />
+                {/* Future months value */}
+                <Bar 
                   dataKey="valor" 
-                  stroke="hsl(var(--primary))" 
-                  strokeWidth={2.5}
-                  fill="url(#colorValor)" 
-                  dot={{ fill: 'hsl(var(--primary))', strokeWidth: 0, r: 4 }}
-                  activeDot={{ fill: 'hsl(var(--primary))', stroke: 'hsl(var(--background))', strokeWidth: 3, r: 6 }}
+                  stackId="monthly" 
+                  fill="hsl(var(--primary))"
+                  radius={[4, 4, 0, 0]}
                 />
-              </AreaChart>
+                {/* Current month - Received (green) */}
+                <Bar 
+                  dataKey="valorRecebido" 
+                  stackId="monthly" 
+                  fill="hsl(142 76% 36%)"
+                  radius={[0, 0, 0, 0]}
+                />
+                {/* Current month - Pending (muted) */}
+                <Bar 
+                  dataKey="valorAReceber" 
+                  stackId="monthly" 
+                  fill="hsl(var(--muted-foreground))"
+                  opacity={0.4}
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
             ) : (
               <BarChart data={dailyData} margin={{ top: 10, right: 10, left: -10, bottom: 10 }}>
                 <XAxis
@@ -477,6 +539,22 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
             )}
           </ResponsiveContainer>
         </div>
+        {viewMode === 'mensal' && (
+          <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-border/30">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-primary" />
+              <span className="text-xs text-muted-foreground">Previsão</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'hsl(142 76% 36%)' }} />
+              <span className="text-xs text-muted-foreground">Recebido (mês atual)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-muted-foreground/50" />
+              <span className="text-xs text-muted-foreground">A receber (mês atual)</span>
+            </div>
+          </div>
+        )}
         {viewMode === 'diario' && (
           <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-border/30">
             <div className="flex items-center gap-2">
