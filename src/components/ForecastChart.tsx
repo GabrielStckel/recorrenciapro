@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -427,7 +427,13 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
         <div className="h-[260px] sm:h-[320px]">
           <ResponsiveContainer width="100%" height="100%">
             {viewMode === 'mensal' ? (
-              <BarChart data={filteredMonthlyData} margin={{ top: 10, right: 10, left: -10, bottom: 10 }}>
+              <AreaChart data={filteredMonthlyData.map(m => ({ ...m, valorTotal: m.valor + m.valorRecebido + m.valorAReceber }))} margin={{ top: 10, right: 10, left: -10, bottom: 10 }}>
+                <defs>
+                  <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
                 <XAxis
                   dataKey="nome"
                   tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: isMobile ? 9 : 11 }}
@@ -444,30 +450,17 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
                   dx={-5}
                   width={35}
                 />
-                <Tooltip content={<MonthlyTooltip />} cursor={{ fill: 'hsl(var(--primary))', opacity: 0.05 }} />
-                {/* Future months value */}
-                <Bar 
-                  dataKey="valor" 
-                  stackId="monthly" 
-                  fill="hsl(var(--primary))"
-                  radius={[4, 4, 0, 0]}
+                <Tooltip content={<MonthlyTooltip />} cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '4 4' }} />
+                <Area 
+                  type="monotone" 
+                  dataKey="valorTotal" 
+                  stroke="hsl(var(--primary))" 
+                  strokeWidth={2.5}
+                  fill="url(#colorValor)" 
+                  dot={{ fill: 'hsl(var(--primary))', strokeWidth: 0, r: 4 }}
+                  activeDot={{ fill: 'hsl(var(--primary))', stroke: 'hsl(var(--background))', strokeWidth: 3, r: 6 }}
                 />
-                {/* Current month - Received (green) */}
-                <Bar 
-                  dataKey="valorRecebido" 
-                  stackId="monthly" 
-                  fill="hsl(142 76% 36%)"
-                  radius={[0, 0, 0, 0]}
-                />
-                {/* Current month - Pending (muted) */}
-                <Bar 
-                  dataKey="valorAReceber" 
-                  stackId="monthly" 
-                  fill="hsl(var(--muted-foreground))"
-                  opacity={0.4}
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
+              </AreaChart>
             ) : (
               <BarChart data={dailyData} margin={{ top: 10, right: 10, left: -10, bottom: 10 }}>
                 <XAxis
