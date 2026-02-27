@@ -1,0 +1,1 @@
+UPDATE public.produtos SET user_id = '07221d4e-a9f7-4e3e-9aae-ff59d251ec7b' WHERE user_id IS NULL;
