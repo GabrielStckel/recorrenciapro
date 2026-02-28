@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { ClienteCalculado } from '@/types/cliente';
 import { useClientes } from '@/hooks/useClientes';
+import { useUserSettings } from '@/hooks/useUserSettings';
+import { PinDialog } from '@/components/PinDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
@@ -12,6 +15,10 @@ interface PagamentosEmRevisaoProps {
 
 export function PagamentosEmRevisao({ clientes }: PagamentosEmRevisaoProps) {
   const { confirmarPagamentoRevisao, marcarComoAtrasado } = useClientes();
+  const { hasPin, verifyPin } = useUserSettings();
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [pinError, setPinError] = useState('');
+  const [pendingClienteId, setPendingClienteId] = useState<string | null>(null);
   
   const emRevisao = clientes.filter((c) => c.em_revisao && c.status_cliente === 'ATIVO');
 
@@ -23,7 +30,25 @@ export function PagamentosEmRevisao({ clientes }: PagamentosEmRevisaoProps) {
   };
 
   const handleConfirmar = (clienteId: string) => {
-    confirmarPagamentoRevisao.mutate({ clienteId });
+    if (hasPin) {
+      setPendingClienteId(clienteId);
+      setPinError('');
+      setPinDialogOpen(true);
+    } else {
+      confirmarPagamentoRevisao.mutate({ clienteId });
+    }
+  };
+
+  const handlePinConfirm = (pin: string) => {
+    if (verifyPin(pin)) {
+      setPinDialogOpen(false);
+      if (pendingClienteId) {
+        confirmarPagamentoRevisao.mutate({ clienteId: pendingClienteId });
+        setPendingClienteId(null);
+      }
+    } else {
+      setPinError('PIN incorreto');
+    }
   };
 
   const handleNaoPagou = (clienteId: string) => {
@@ -35,6 +60,7 @@ export function PagamentosEmRevisao({ clientes }: PagamentosEmRevisaoProps) {
   }
 
   return (
+    <>
     <Card className="glass border-warning/20">
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2 text-warning">
@@ -104,5 +130,15 @@ export function PagamentosEmRevisao({ clientes }: PagamentosEmRevisaoProps) {
         </div>
       </CardContent>
     </Card>
+
+      <PinDialog
+        open={pinDialogOpen}
+        onOpenChange={setPinDialogOpen}
+        onConfirm={handlePinConfirm}
+        title="Confirmar Pagamento"
+        description="Digite seu PIN para confirmar o pagamento"
+        error={pinError}
+      />
+    </>
   );
 }
