@@ -30,73 +30,132 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Find all links where user is involved (either as owner or partner)
-    const { data: links, error: linkError } = await supabaseAdmin
+    // Strategy 1: Use formal links from clientes_vinculados
+    const { data: links } = await supabaseAdmin
       .from('clientes_vinculados')
       .select('*')
       .or(`user_id.eq.${user.id},parceiro_user_id.eq.${user.id}`)
 
-    if (linkError) {
-      console.error('Error fetching links:', linkError.message)
-      return new Response(JSON.stringify({ error: 'Erro ao buscar vínculos' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+    let syncCount = 0
+
+    if (links && links.length > 0) {
+      for (const link of links) {
+        const isOwner = link.user_id === user.id
+        const sourceClientId = isOwner ? link.cliente_parceiro_id : link.cliente_id
+        const myClientId = isOwner ? link.cliente_id : link.cliente_parceiro_id
+
+        const { data: sourceClient } = await supabaseAdmin
+          .from('clientes_parcelados')
+          .select('*')
+          .eq('id', sourceClientId)
+          .maybeSingle()
+
+        if (!sourceClient) continue
+
+        const { error: updateError } = await supabaseAdmin
+          .from('clientes_parcelados')
+          .update({
+            cliente_nome: sourceClient.cliente_nome,
+            whatsapp: sourceClient.whatsapp,
+            produto: sourceClient.produto,
+            total_parcelas: sourceClient.total_parcelas,
+            parcelas_pagas: sourceClient.parcelas_pagas,
+            dia_vencimento: sourceClient.dia_vencimento,
+            data_inicio: sourceClient.data_inicio,
+            data_ultimo_pagamento: sourceClient.data_ultimo_pagamento,
+            status_cliente: sourceClient.status_cliente,
+            em_revisao: sourceClient.em_revisao,
+            mes_referencia_revisao: sourceClient.mes_referencia_revisao,
+            valor_pago_parcial: sourceClient.valor_pago_parcial,
+            observacao_revisao: sourceClient.observacao_revisao,
+            created_at: sourceClient.created_at,
+          })
+          .eq('id', myClientId)
+
+        if (!updateError) syncCount++
+      }
     }
 
-    if (!links || links.length === 0) {
-      return new Response(JSON.stringify({ synced: 0, message: 'Nenhum vínculo encontrado' }), {
+    // Strategy 2: Match by client name (for copied but unlinked clients)
+    // Get all my clients
+    const { data: myClients } = await supabaseAdmin
+      .from('clientes_parcelados')
+      .select('*')
+      .eq('user_id', user.id)
+
+    if (!myClients || myClients.length === 0) {
+      return new Response(JSON.stringify({ synced: syncCount, message: 'Nenhum cliente encontrado' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    let syncCount = 0
+    // Get IDs already handled via formal links
+    const linkedMyIds = new Set(
+      (links || []).map((l: any) => l.user_id === user.id ? l.cliente_id : l.cliente_parceiro_id)
+    )
 
-    for (const link of links) {
-      // Determine which is the source (other user's client) and which is mine
-      const isOwner = link.user_id === user.id
-      const sourceClientId = isOwner ? link.cliente_parceiro_id : link.cliente_id
-      const myClientId = isOwner ? link.cliente_id : link.cliente_parceiro_id
+    // Find other user IDs that have clients with matching names
+    const myClientNames = myClients
+      .filter(c => !linkedMyIds.has(c.id))
+      .map(c => c.cliente_nome)
 
-      // Fetch source client data (the other user's client)
-      const { data: sourceClient, error: srcError } = await supabaseAdmin
-        .from('clientes_parcelados')
-        .select('*')
-        .eq('id', sourceClientId)
-        .maybeSingle()
+    if (myClientNames.length === 0) {
+      return new Response(JSON.stringify({ synced: syncCount }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
-      if (srcError || !sourceClient) {
-        console.log(`Source client ${sourceClientId} not found, skipping`)
-        continue
-      }
+    // Get all clients from OTHER users with matching names
+    const { data: otherClients } = await supabaseAdmin
+      .from('clientes_parcelados')
+      .select('*')
+      .neq('user_id', user.id)
+      .in('cliente_nome', myClientNames)
 
-      // Update my client with synced fields (excluding valor_total and user_id)
+    if (!otherClients || otherClients.length === 0) {
+      return new Response(JSON.stringify({ synced: syncCount }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Build a map: nome -> source client (from the other user)
+    const sourceByName = new Map<string, any>()
+    for (const c of otherClients) {
+      sourceByName.set(c.cliente_nome, c)
+    }
+
+    // Update my unlinked clients that have a match
+    for (const myClient of myClients) {
+      if (linkedMyIds.has(myClient.id)) continue
+      const source = sourceByName.get(myClient.cliente_nome)
+      if (!source) continue
+
       const { error: updateError } = await supabaseAdmin
         .from('clientes_parcelados')
         .update({
-          cliente_nome: sourceClient.cliente_nome,
-          whatsapp: sourceClient.whatsapp,
-          produto: sourceClient.produto,
-          total_parcelas: sourceClient.total_parcelas,
-          parcelas_pagas: sourceClient.parcelas_pagas,
-          dia_vencimento: sourceClient.dia_vencimento,
-          data_inicio: sourceClient.data_inicio,
-          data_ultimo_pagamento: sourceClient.data_ultimo_pagamento,
-          status_cliente: sourceClient.status_cliente,
-          em_revisao: sourceClient.em_revisao,
-          mes_referencia_revisao: sourceClient.mes_referencia_revisao,
-          valor_pago_parcial: sourceClient.valor_pago_parcial,
-          observacao_revisao: sourceClient.observacao_revisao,
+          whatsapp: source.whatsapp,
+          produto: source.produto,
+          total_parcelas: source.total_parcelas,
+          parcelas_pagas: source.parcelas_pagas,
+          dia_vencimento: source.dia_vencimento,
+          data_inicio: source.data_inicio,
+          data_ultimo_pagamento: source.data_ultimo_pagamento,
+          status_cliente: source.status_cliente,
+          em_revisao: source.em_revisao,
+          mes_referencia_revisao: source.mes_referencia_revisao,
+          valor_pago_parcial: source.valor_pago_parcial,
+          observacao_revisao: source.observacao_revisao,
+          created_at: source.created_at,
         })
-        .eq('id', myClientId)
+        .eq('id', myClient.id)
 
-      if (updateError) {
-        console.log(`Error updating client ${myClientId}:`, updateError.message)
-      } else {
-        syncCount++
-      }
+      if (!updateError) syncCount++
+      else console.log(`Error updating ${myClient.id}:`, updateError.message)
     }
 
-    return new Response(JSON.stringify({ synced: syncCount, total: links.length }), {
+    console.log(`Synced ${syncCount} clients for user ${user.id}`)
+
+    return new Response(JSON.stringify({ synced: syncCount }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {
