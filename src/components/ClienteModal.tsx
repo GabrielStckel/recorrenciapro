@@ -5,6 +5,7 @@ import { useProdutos } from '@/hooks/useProdutos';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   Select,
@@ -13,25 +14,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus, Users } from 'lucide-react';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 // Função para converter valor brasileiro para número
 function parseBrazilianCurrency(value: string): number {
   if (!value || typeof value !== 'string') return NaN;
-  
-  // Remove R$, espaços, pontos de milhar
   let cleaned = value
     .replace(/R\$\s*/gi, '')
     .replace(/\s/g, '')
-    .replace(/\./g, '')  // Remove pontos de milhar
-    .replace(',', '.');   // Troca vírgula por ponto decimal
-  
+    .replace(/\./g, '')
+    .replace(',', '.');
   return parseFloat(cleaned);
 }
 
-// Formata centavos como moeda brasileira (ex: 1000 centavos → "10,00")
 function formatCurrencyInput(cents: number): string {
   if (cents === 0) return '';
   const reais = (cents / 100).toFixed(2);
@@ -40,7 +38,6 @@ function formatCurrencyInput(cents: number): string {
   return `${intFormatted},${decPart}`;
 }
 
-// Converte string formatada de volta para centavos
 function toCents(formatted: string): number {
   const digits = formatted.replace(/\D/g, '');
   return parseInt(digits, 10) || 0;
@@ -83,6 +80,11 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
   const { toast } = useToast();
   const [novoProduto, setNovoProduto] = useState('');
   const [showNovoProduto, setShowNovoProduto] = useState(false);
+  const [comSocio, setComSocio] = useState(false);
+  const [emailSocio, setEmailSocio] = useState('');
+  const [percentualUser, setPercentualUser] = useState('50');
+  const [percentualParceiro, setPercentualParceiro] = useState('50');
+  const [isSavingWithPartner, setIsSavingWithPartner] = useState(false);
   const [formData, setFormData] = useState({
     cliente_nome: '',
     whatsapp: '',
@@ -108,6 +110,7 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
         data_inicio: cliente.data_inicio,
         status_cliente: cliente.status_cliente || 'ATIVO',
       });
+      setComSocio(false);
     } else {
       setFormData({
         cliente_nome: '',
@@ -120,20 +123,35 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
         data_inicio: formatDateOnlyISO(new Date()),
         status_cliente: 'ATIVO',
       });
+      setComSocio(false);
+      setEmailSocio('');
+      setPercentualUser('50');
+      setPercentualParceiro('50');
     }
   }, [cliente, open]);
 
+  const handlePercentualUserChange = (val: string) => {
+    setPercentualUser(val);
+    const num = parseFloat(val);
+    if (!isNaN(num) && num >= 0 && num <= 100) {
+      setPercentualParceiro((100 - num).toString());
+    }
+  };
+
+  const handlePercentualParceiroChange = (val: string) => {
+    setPercentualParceiro(val);
+    const num = parseFloat(val);
+    if (!isNaN(num) && num >= 0 && num <= 100) {
+      setPercentualUser((100 - num).toString());
+    }
+  };
+
   const handleSubmit = async () => {
     try {
-      // Parse valor_total com formato brasileiro
       const valorParsed = parseBrazilianCurrency(formData.valor_total);
       
       if (isNaN(valorParsed)) {
-        toast({
-          title: 'Erro de validação',
-          description: 'Digite um valor válido, ex: 1636,20',
-          variant: 'destructive',
-        });
+        toast({ title: 'Erro de validação', description: 'Digite um valor válido, ex: 1636,20', variant: 'destructive' });
         return;
       }
 
@@ -142,29 +160,17 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
       const diaVencimentoParsed = parseInt(formData.dia_vencimento, 10);
 
       if (!Number.isInteger(totalParcelasParsed) || totalParcelasParsed <= 0) {
-        toast({
-          title: 'Erro de validação',
-          description: 'Total de parcelas deve ser um número inteiro maior que zero.',
-          variant: 'destructive',
-        });
+        toast({ title: 'Erro de validação', description: 'Total de parcelas deve ser um número inteiro maior que zero.', variant: 'destructive' });
         return;
       }
 
       if (!Number.isInteger(parcelasPagasParsed) || parcelasPagasParsed < 0) {
-        toast({
-          title: 'Erro de validação',
-          description: 'Parcelas pagas deve ser um número inteiro maior ou igual a zero.',
-          variant: 'destructive',
-        });
+        toast({ title: 'Erro de validação', description: 'Parcelas pagas deve ser um número inteiro maior ou igual a zero.', variant: 'destructive' });
         return;
       }
 
       if (!Number.isInteger(diaVencimentoParsed) || diaVencimentoParsed < 1 || diaVencimentoParsed > 31) {
-        toast({
-          title: 'Erro de validação',
-          description: 'Dia de vencimento deve estar entre 1 e 31.',
-          variant: 'destructive',
-        });
+        toast({ title: 'Erro de validação', description: 'Dia de vencimento deve estar entre 1 e 31.', variant: 'destructive' });
         return;
       }
 
@@ -180,8 +186,6 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
         status_cliente: formData.status_cliente,
       };
 
-      // Ao editar, se dia_vencimento ou data_inicio mudaram, limpar estado de revisão
-      // para que o sistema reavalie o status com base nas novas datas
       const datesChanged = cliente && (
         diaVencimentoParsed !== cliente.dia_vencimento || 
         formData.data_inicio !== cliente.data_inicio
@@ -198,18 +202,63 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
 
       const result = clienteSchema.safeParse(data);
       if (!result.success) {
-        toast({
-          title: 'Erro de validação',
-          description: result.error.errors[0].message,
-          variant: 'destructive',
-        });
+        toast({ title: 'Erro de validação', description: result.error.errors[0].message, variant: 'destructive' });
         return;
       }
 
       if (cliente) {
+        // Edit mode - no partner creation
         await updateCliente.mutateAsync({ id: cliente.id, ...data });
         toast({ title: 'Cliente atualizado com sucesso!' });
+      } else if (comSocio) {
+        // New client with partner
+        if (!emailSocio.trim()) {
+          toast({ title: 'Erro', description: 'Informe o email do sócio', variant: 'destructive' });
+          return;
+        }
+        const pctUser = parseFloat(percentualUser);
+        const pctParceiro = parseFloat(percentualParceiro);
+        if (isNaN(pctUser) || isNaN(pctParceiro) || pctUser <= 0 || pctParceiro <= 0 || Math.abs(pctUser + pctParceiro - 100) > 0.01) {
+          toast({ title: 'Erro', description: 'Os percentuais devem somar 100%', variant: 'destructive' });
+          return;
+        }
+
+        setIsSavingWithPartner(true);
+        try {
+          const { data: respData, error } = await supabase.functions.invoke('criar-cliente-socio', {
+            body: {
+              cliente_data: {
+                cliente_nome: data.cliente_nome,
+                whatsapp: data.whatsapp,
+                produto: data.produto,
+                valor_total: data.valor_total,
+                total_parcelas: data.total_parcelas,
+                parcelas_pagas: data.parcelas_pagas,
+                dia_vencimento: data.dia_vencimento,
+                data_inicio: data.data_inicio,
+                status_cliente: data.status_cliente,
+                data_ultimo_pagamento: data.data_ultimo_pagamento,
+                em_revisao: data.em_revisao,
+                mes_referencia_revisao: data.mes_referencia_revisao,
+              },
+              email_socio: emailSocio.trim(),
+              percentual_user: pctUser,
+              percentual_parceiro: pctParceiro,
+            },
+          });
+
+          if (error) throw error;
+          if (respData?.error) throw new Error(respData.error);
+
+          toast({ title: 'Cliente criado!', description: respData.message });
+        } catch (err: any) {
+          toast({ title: 'Erro', description: err.message || 'Erro ao criar cliente com sócio', variant: 'destructive' });
+          return;
+        } finally {
+          setIsSavingWithPartner(false);
+        }
       } else {
+        // New client without partner
         await addCliente.mutateAsync(data);
       }
       onClose();
@@ -218,11 +267,16 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
     }
   };
 
-  const isLoading = addCliente.isPending || updateCliente.isPending;
+  const isLoading = addCliente.isPending || updateCliente.isPending || isSavingWithPartner;
+
+  const valorParsed = parseBrazilianCurrency(formData.valor_total);
+  const pctUser = parseFloat(percentualUser);
+  const pctParceiro = parseFloat(percentualParceiro);
+  const showPreview = comSocio && !isNaN(valorParsed) && valorParsed > 0 && !isNaN(pctUser) && !isNaN(pctParceiro);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{cliente ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
         </DialogHeader>
@@ -278,10 +332,7 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    setNovoProduto('');
-                    setShowNovoProduto(false);
-                  }}
+                  onClick={() => { setNovoProduto(''); setShowNovoProduto(false); }}
                 >
                   Cancelar
                 </Button>
@@ -401,6 +452,69 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
               />
             </div>
           )}
+
+          {/* Partner section - only for new clients */}
+          {!cliente && (
+            <div className="border-t pt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="com-socio" className="flex items-center gap-2 cursor-pointer">
+                  <Users className="w-4 h-4 text-primary" />
+                  Adicionar sócio
+                </Label>
+                <Switch
+                  id="com-socio"
+                  checked={comSocio}
+                  onCheckedChange={setComSocio}
+                />
+              </div>
+
+              {comSocio && (
+                <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border">
+                  <div className="grid gap-2">
+                    <Label htmlFor="email-socio" className="text-xs">Email do sócio</Label>
+                    <Input
+                      id="email-socio"
+                      type="email"
+                      placeholder="socio@email.com"
+                      value={emailSocio}
+                      onChange={(e) => setEmailSocio(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="grid gap-1">
+                      <Label className="text-xs">Meu % </Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="99"
+                        value={percentualUser}
+                        onChange={(e) => handlePercentualUserChange(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-xs">Sócio %</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="99"
+                        value={percentualParceiro}
+                        onChange={(e) => handlePercentualParceiroChange(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                  </div>
+                  {showPreview && (
+                    <div className="text-xs text-muted-foreground space-y-0.5 pt-1">
+                      <p>Meu valor: <span className="font-medium text-foreground">R$ {(valorParsed * pctUser / 100).toFixed(2).replace('.', ',')}</span></p>
+                      <p>Sócio: <span className="font-medium text-foreground">R$ {(valorParsed * pctParceiro / 100).toFixed(2).replace('.', ',')}</span></p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <DialogFooter>
@@ -409,7 +523,7 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
           </Button>
           <Button onClick={handleSubmit} disabled={isLoading}>
             {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            {cliente ? 'Salvar' : 'Adicionar'}
+            {cliente ? 'Salvar' : comSocio ? 'Criar com Sócio' : 'Adicionar'}
           </Button>
         </DialogFooter>
       </DialogContent>
