@@ -108,7 +108,8 @@ export default function Dashboard() {
   const totalAReceber = clientesFiltrados.reduce((acc, c) => acc + c.valor_a_receber, 0);
   const clientesAtrasados = clientesFiltrados.filter((c) => c.status === 'Atrasado');
   const clientesEmRevisao = clientesFiltrados.filter((c) => c.em_revisao && c.status_cliente === 'ATIVO');
-  const valorEmAtraso = clientesAtrasados.reduce((acc, c) => acc + c.valor_parcela, 0);
+  const totalParcelasAtrasadas = clientesAtrasados.reduce((acc, c) => acc + c.parcelas_atrasadas, 0);
+  const valorEmAtraso = clientesAtrasados.reduce((acc, c) => acc + c.valor_parcela * c.parcelas_atrasadas, 0);
 
   // Helpers para cálculos do mês
   const parseDateOnlyISO = (dateStr: string): Date => {
