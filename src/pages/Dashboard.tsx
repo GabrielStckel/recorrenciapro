@@ -30,6 +30,7 @@ export default function Dashboard() {
   const [atrasadosOpen, setAtrasadosOpen] = useState(false);
   const [hideClientNames, setHideClientNames] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [copiarDialogOpen, setCopiarDialogOpen] = useState(false);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
