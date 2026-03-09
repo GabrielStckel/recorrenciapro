@@ -236,11 +236,12 @@ export default function Dashboard() {
             variant={aReceberNoMes > 0 ? 'default' : 'success'} 
           />
           <KPICard 
-            title="Clientes Atrasados" 
-            value={clientesAtrasados.length.toString()} 
+            title="Parcelas Atrasadas" 
+            value={totalParcelasAtrasadas.toString()} 
+            subtitle={`${clientesAtrasados.length} ${clientesAtrasados.length === 1 ? 'cliente' : 'clientes'}`}
             icon={AlertTriangle} 
-            variant={clientesAtrasados.length > 0 ? 'destructive' : 'default'}
-            showPrivacyToggle={clientesAtrasados.length > 0}
+            variant={totalParcelasAtrasadas > 0 ? 'destructive' : 'default'}
+            showPrivacyToggle={totalParcelasAtrasadas > 0}
             isPrivate={hideClientNames}
             onPrivacyToggle={() => setHideClientNames(!hideClientNames)}
           />
