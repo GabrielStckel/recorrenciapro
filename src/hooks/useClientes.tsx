@@ -66,6 +66,10 @@ export function useClientes() {
         .single();
       
       if (error) throw error;
+
+      // Sync editable fields to partner (fire-and-forget)
+      sincronizarParceiro(id, 'cliente_editado', updates as Record<string, unknown>);
+
       return data;
     },
     onSuccess: () => {
