@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useClientes } from '@/hooks/useClientes';
+import { supabase } from '@/integrations/supabase/client';
 import { useHideValues } from '@/hooks/useHideValues';
 import { Layout } from '@/components/Layout';
 import { KPICard } from '@/components/KPICard';
