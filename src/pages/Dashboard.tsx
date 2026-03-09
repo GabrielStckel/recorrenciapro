@@ -278,6 +278,12 @@ export default function Dashboard() {
           isOpen={atrasadosOpen}
           onOpenChange={setAtrasadosOpen}
         />
+
+        <CopiarClientesDialog
+          open={copiarDialogOpen}
+          onOpenChange={setCopiarDialogOpen}
+          totalClientes={clientes.length}
+        />
       </div>
     </Layout>
   );
