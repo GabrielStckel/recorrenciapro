@@ -24,12 +24,14 @@ export type Database = {
           em_revisao: boolean
           id: string
           mes_referencia_revisao: string | null
+          observacao_revisao: string | null
           parcelas_pagas: number
           produto: string
           status_cliente: string
           total_parcelas: number
           updated_at: string
           user_id: string
+          valor_pago_parcial: number | null
           valor_total: number
           whatsapp: string | null
         }
@@ -42,12 +44,14 @@ export type Database = {
           em_revisao?: boolean
           id?: string
           mes_referencia_revisao?: string | null
+          observacao_revisao?: string | null
           parcelas_pagas?: number
           produto: string
           status_cliente?: string
           total_parcelas: number
           updated_at?: string
           user_id: string
+          valor_pago_parcial?: number | null
           valor_total: number
           whatsapp?: string | null
         }
@@ -60,12 +64,14 @@ export type Database = {
           em_revisao?: boolean
           id?: string
           mes_referencia_revisao?: string | null
+          observacao_revisao?: string | null
           parcelas_pagas?: number
           produto?: string
           status_cliente?: string
           total_parcelas?: number
           updated_at?: string
           user_id?: string
+          valor_pago_parcial?: number | null
           valor_total?: number
           whatsapp?: string | null
         }
