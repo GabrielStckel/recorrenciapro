@@ -402,6 +402,12 @@ export function useClientes() {
         .eq('id', clienteId);
       
       if (error) throw error;
+
+      // Sync to partner
+      sincronizarParceiro(clienteId, 'pagamento_parcial', {
+        valor_pago_parcial: valorPagoParcial,
+        observacao_revisao: observacao,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
