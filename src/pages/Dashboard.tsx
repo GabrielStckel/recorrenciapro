@@ -9,7 +9,8 @@ import { ClientesAtrasados } from '@/components/ClientesAtrasados';
 import { PagamentosEmRevisao } from '@/components/PagamentosEmRevisao';
 import { MinhaEvolucao } from '@/components/MinhaEvolucao';
 import { FiltroPrevisaoFaturamento } from '@/components/FiltroPrevisaoFaturamento';
-import { TrendingUp, AlertTriangle, Clock, Loader2, Calendar, CheckCircle, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Clock, Loader2, Calendar, CheckCircle, Eye, EyeOff, RefreshCw, Users } from 'lucide-react';
+import { CopiarClientesDialog } from '@/components/CopiarClientesDialog';
 import {
   Select,
   SelectContent,
@@ -29,6 +30,7 @@ export default function Dashboard() {
   const [atrasadosOpen, setAtrasadosOpen] = useState(false);
   const [hideClientNames, setHideClientNames] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [copiarDialogOpen, setCopiarDialogOpen] = useState(false);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -178,6 +180,16 @@ export default function Dashboard() {
               </SelectContent>
             </Select>
             <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCopiarDialogOpen(true)}
+              className="gap-1.5"
+              title="Copiar clientes para sócio"
+            >
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Sócio</span>
+            </Button>
+            <Button
               variant="ghost"
               size="icon"
               onClick={handleRefresh}
@@ -265,6 +277,12 @@ export default function Dashboard() {
           hideNames={hideClientNames}
           isOpen={atrasadosOpen}
           onOpenChange={setAtrasadosOpen}
+        />
+
+        <CopiarClientesDialog
+          open={copiarDialogOpen}
+          onOpenChange={setCopiarDialogOpen}
+          totalClientes={clientes.length}
         />
       </div>
     </Layout>
