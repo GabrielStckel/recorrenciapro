@@ -22,7 +22,8 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { PinDialog } from './PinDialog';
-import { Plus, Minus, History, Edit, Trash2, MoreHorizontal, Search, Clock, UserCheck, UserX, Pause, CheckCircle, ChevronDown, Filter, X } from 'lucide-react';
+import { VincularSocioDialog } from './VincularSocioDialog';
+import { Plus, Minus, History, Edit, Trash2, MoreHorizontal, Search, Clock, UserCheck, UserX, Pause, CheckCircle, ChevronDown, Filter, X, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ClientesTableProps {
@@ -79,6 +80,10 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos, hideV
   const [pinDialogOpen, setPinDialogOpen] = useState(false);
   const [pinError, setPinError] = useState('');
   const [pendingAction, setPendingAction] = useState<{ clienteId: string; incremento: number } | null>(null);
+
+  // Estado para vincular sócio
+  const [vincularDialogOpen, setVincularDialogOpen] = useState(false);
+  const [clienteParaVincular, setClienteParaVincular] = useState<ClienteCalculado | null>(null);
 
   const formatCurrency = (value: number) => {
     if (hideValues) return '••••••';
@@ -538,6 +543,10 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos, hideV
                               <Edit className="w-4 h-4 mr-2" />
                               Editar
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setClienteParaVincular(cliente); setVincularDialogOpen(true); }}>
+                              <Users className="w-4 h-4 mr-2" />
+                              Vincular sócio
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={() => handleDelete(cliente)}
@@ -572,6 +581,13 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos, hideV
         error={pinError}
         title="Confirmar Pagamento"
         description="Digite seu PIN para confirmar o registro de pagamento"
+      />
+
+      {/* Vincular Sócio Dialog */}
+      <VincularSocioDialog
+        open={vincularDialogOpen}
+        onClose={() => { setVincularDialogOpen(false); setClienteParaVincular(null); }}
+        cliente={clienteParaVincular}
       />
     </div>
   );
