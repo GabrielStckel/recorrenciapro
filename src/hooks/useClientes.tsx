@@ -248,6 +248,8 @@ export function useClientes() {
           data_ultimo_pagamento: novaDataUltimoPagamento,
           em_revisao: false,
           mes_referencia_revisao: null,
+          valor_pago_parcial: null,
+          observacao_revisao: null,
         })
         .eq('id', clienteId);
       
