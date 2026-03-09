@@ -20,14 +20,12 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const anonKey = Deno.env.get('SUPABASE_PUBLISHABLE_KEY')!
 
-    // Verify calling user
-    const supabaseUser = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    })
+    // Use service role client to verify user from auth header
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey)
 
-    const { data: { user }, error: userError } = await supabaseUser.auth.getUser()
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token)
     if (userError || !user) {
       console.log('Auth error:', userError?.message)
       return new Response(JSON.stringify({ error: 'Não autenticado' }), {
