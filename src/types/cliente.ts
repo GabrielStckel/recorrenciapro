@@ -17,6 +17,8 @@ export interface Cliente {
   status_cliente: StatusCliente;
   em_revisao: boolean;
   mes_referencia_revisao: string | null;
+  valor_pago_parcial: number | null;
+  observacao_revisao: string | null;
   created_at: string;
   updated_at: string;
 }
