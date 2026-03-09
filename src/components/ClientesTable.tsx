@@ -543,6 +543,10 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos, hideV
                               <Edit className="w-4 h-4 mr-2" />
                               Editar
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setClienteParaVincular(cliente); setVincularDialogOpen(true); }}>
+                              <Users className="w-4 h-4 mr-2" />
+                              Vincular sócio
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={() => handleDelete(cliente)}
