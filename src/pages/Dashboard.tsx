@@ -33,6 +33,21 @@ export default function Dashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [copiarDialogOpen, setCopiarDialogOpen] = useState(false);
 
+  // Sync partner clients on dashboard open
+  useEffect(() => {
+    const syncPartnerClients = async () => {
+      try {
+        const { error } = await supabase.functions.invoke('sincronizar-clientes-parceiro');
+        if (!error) {
+          queryClient.invalidateQueries({ queryKey: ['clientes'] });
+        }
+      } catch (e) {
+        console.log('Partner sync on open failed (non-critical):', e);
+      }
+    };
+    syncPartnerClients();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     // Limpa o set de clientes revisados para reavaliar todos
