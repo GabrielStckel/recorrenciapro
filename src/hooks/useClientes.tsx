@@ -332,6 +332,9 @@ export function useClientes() {
 
       if (updateError) throw updateError;
 
+      // Sync to partner (fire-and-forget)
+      sincronizarParceiro(clienteId, 'marcado_atrasado');
+
       return { clienteId, mesAtual };
     },
     onSuccess: (result) => {
