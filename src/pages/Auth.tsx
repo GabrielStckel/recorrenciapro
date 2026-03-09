@@ -228,10 +228,16 @@ export default function Auth() {
                     <div className="space-y-2">
                       <Label htmlFor="password-signup">Senha</Label>
                       <div className="relative">
-                        <Input id="password-signup" type={showPassword ? 'text' : 'password'} placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} disabled={loading} onKeyDown={(e) => e.key === 'Enter' && handleSubmit('signup')} className="pr-10" />
+                        <Input id="password-signup" type={showPassword ? 'text' : 'password'} placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} disabled={loading} className="pr-10" />
                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" tabIndex={-1}>
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirm-password-signup">Confirmar Senha</Label>
+                      <div className="relative">
+                        <Input id="confirm-password-signup" type={showPassword ? 'text' : 'password'} placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} disabled={loading} onKeyDown={(e) => e.key === 'Enter' && handleSubmit('signup')} className="pr-10" />
                       </div>
                     </div>
                     <Button className="w-full" onClick={() => handleSubmit('signup')} disabled={loading}>
