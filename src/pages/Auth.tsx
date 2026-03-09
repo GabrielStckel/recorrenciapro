@@ -199,9 +199,9 @@ export default function Auth() {
                     onKeyDown={(e) => e.key === 'Enter' && handleForgotPassword()}
                   />
                 </div>
-                <Button className="w-full" onClick={handleForgotPassword} disabled={loading}>
+                <Button className="w-full" onClick={handleForgotPassword} disabled={loading || recoverCooldown > 0}>
                   {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Enviar Link de Recuperação
+                  {recoverCooldown > 0 ? `Aguarde ${recoverCooldown}s` : 'Enviar Link de Recuperação'}
                 </Button>
                 <Button variant="ghost" className="w-full gap-2" onClick={() => setForgotMode(false)}>
                   <ArrowLeft className="w-4 h-4" /> Voltar ao login
