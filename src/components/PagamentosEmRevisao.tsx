@@ -119,7 +119,7 @@ export function PagamentosEmRevisao({ clientes }: PagamentosEmRevisaoProps) {
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground truncate">{cliente.cliente_nome}</p>
-                    <p className="text-xs text-muted-foreground truncate">{cliente.produto}</p>
+                    <p className="text-xs text-muted-foreground truncate">{cliente.produto} · Parcela {cliente.parcelas_pagas + 1}/{cliente.total_parcelas}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-[10px] text-warning">
