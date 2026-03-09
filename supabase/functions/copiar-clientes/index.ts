@@ -43,8 +43,6 @@ Deno.serve(async (req) => {
       })
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey)
-
     // Find partner by email using admin API with filter
     const { data: usersData, error: listError } = await supabaseAdmin.auth.admin.listUsers({
       page: 1,
