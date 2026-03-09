@@ -9,7 +9,8 @@ import { ClientesAtrasados } from '@/components/ClientesAtrasados';
 import { PagamentosEmRevisao } from '@/components/PagamentosEmRevisao';
 import { MinhaEvolucao } from '@/components/MinhaEvolucao';
 import { FiltroPrevisaoFaturamento } from '@/components/FiltroPrevisaoFaturamento';
-import { TrendingUp, AlertTriangle, Clock, Loader2, Calendar, CheckCircle, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Clock, Loader2, Calendar, CheckCircle, Eye, EyeOff, RefreshCw, Users } from 'lucide-react';
+import { CopiarClientesDialog } from '@/components/CopiarClientesDialog';
 import {
   Select,
   SelectContent,
