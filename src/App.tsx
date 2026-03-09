@@ -29,6 +29,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/clientes" element={<ProtectedRoute><Clientes /></ProtectedRoute>} />
       <Route path="/historico" element={<ProtectedRoute><Historico /></ProtectedRoute>} />
