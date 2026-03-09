@@ -110,6 +110,7 @@ Deno.serve(async (req) => {
       status_cliente: c.status_cliente,
       em_revisao: c.em_revisao,
       mes_referencia_revisao: c.mes_referencia_revisao,
+      created_at: c.created_at,
     }))
 
     const { error: insertError } = await supabaseAdmin
