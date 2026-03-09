@@ -127,6 +127,7 @@ Deno.serve(async (req) => {
           status_cliente: cliente.status_cliente,
           em_revisao: cliente.em_revisao,
           mes_referencia_revisao: cliente.mes_referencia_revisao,
+          created_at: cliente.created_at,
         })
         .select('id')
         .single()
