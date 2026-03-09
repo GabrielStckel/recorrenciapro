@@ -192,6 +192,8 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
         data_ultimo_pagamento: cliente ? cliente.data_ultimo_pagamento : null,
         em_revisao: cliente ? (datesChanged ? false : cliente.em_revisao) : false,
         mes_referencia_revisao: cliente ? (datesChanged ? null : cliente.mes_referencia_revisao) : null,
+        valor_pago_parcial: cliente ? (datesChanged ? null : cliente.valor_pago_parcial) : null,
+        observacao_revisao: cliente ? (datesChanged ? null : cliente.observacao_revisao) : null,
       };
 
       const result = clienteSchema.safeParse(data);
