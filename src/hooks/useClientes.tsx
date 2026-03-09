@@ -302,6 +302,8 @@ export function useClientes() {
         .update({
           em_revisao: false,
           mes_referencia_revisao: mesAtual,
+          valor_pago_parcial: null,
+          observacao_revisao: null,
         })
         .eq('id', clienteId);
 
