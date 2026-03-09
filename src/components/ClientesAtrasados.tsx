@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ClienteCalculado } from '@/types/cliente';
+import { ClienteCalculado, expandirParcelasAtrasadas } from '@/types/cliente';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils';
 import { useClientes } from '@/hooks/useClientes';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { PinDialog } from '@/components/PinDialog';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface ClientesAtrasadosProps {
   clientes: ClienteCalculado[];
@@ -25,7 +27,7 @@ export function ClientesAtrasados({
   isOpen = false,
   onOpenChange,
 }: ClientesAtrasadosProps) {
-  const atrasados = clientes.filter((c) => c.status === 'Atrasado');
+  const parcelasAtrasadas = expandirParcelasAtrasadas(clientes);
   const { confirmarPagamentoRevisao } = useClientes();
   const { hasPin, verifyPin } = useUserSettings();
   const [pinDialogOpen, setPinDialogOpen] = useState(false);
@@ -62,9 +64,12 @@ export function ClientesAtrasados({
     }).format(value);
   };
 
-  if (atrasados.length === 0) {
+  if (parcelasAtrasadas.length === 0) {
     return null;
   }
+
+  // Count unique clients
+  const clientesUnicos = new Set(parcelasAtrasadas.map(p => p.cliente.id)).size;
 
   return (
     <Collapsible open={isOpen} onOpenChange={onOpenChange}>
@@ -78,10 +83,10 @@ export function ClientesAtrasados({
                 </div>
                 <div className="flex flex-col justify-center">
                   <CardTitle className="text-base font-semibold text-destructive">
-                    Clientes em Atraso
+                    Parcelas em Atraso
                   </CardTitle>
                   <p className="text-xs text-muted-foreground">
-                    {atrasados.length} {atrasados.length === 1 ? 'cliente' : 'clientes'}
+                    {parcelasAtrasadas.length} {parcelasAtrasadas.length === 1 ? 'parcela' : 'parcelas'} · {clientesUnicos} {clientesUnicos === 1 ? 'cliente' : 'clientes'}
                   </p>
                 </div>
               </div>
@@ -95,24 +100,29 @@ export function ClientesAtrasados({
         <CollapsibleContent>
           <CardContent className="pt-0 pb-4">
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {atrasados.map((cliente) => (
+              {parcelasAtrasadas.map((item) => (
                 <div
-                  key={cliente.id}
+                  key={`${item.cliente.id}-${item.numeroParcela}`}
                   className="group p-2.5 lg:p-3.5 rounded-lg bg-destructive/10 border border-destructive/20 hover:border-destructive/40 hover:bg-destructive/15 transition-all duration-200"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm lg:text-base font-medium text-foreground truncate">
-                        {hideNames ? '••••••••' : cliente.cliente_nome}
+                        {hideNames ? '••••••••' : item.cliente.cliente_nome}
                       </p>
-                      <p className="text-xs lg:text-sm text-muted-foreground truncate">{cliente.produto}</p>
+                      <p className="text-xs lg:text-sm text-muted-foreground truncate">
+                        {item.cliente.produto} · Parcela {item.numeroParcela}/{item.cliente.total_parcelas}
+                      </p>
+                      <p className="text-[10px] text-destructive/70">
+                        Venc. {format(item.dataVencimento, 'dd/MM/yyyy', { locale: ptBR })}
+                      </p>
                     </div>
                     <div className="text-right flex-shrink-0">
                       <Badge variant="destructive" className="text-[10px] lg:text-xs px-1.5 lg:px-2 py-0 lg:py-0.5">
-                        {cliente.dias_em_atraso}d
+                        {item.diasAtraso}d
                       </Badge>
                       <p className="text-sm lg:text-base font-semibold text-foreground">
-                        {formatCurrency(cliente.valor_parcela)}
+                        {formatCurrency(item.cliente.valor_parcela)}
                       </p>
                     </div>
                   </div>
@@ -120,10 +130,10 @@ export function ClientesAtrasados({
                     <Button
                       size="sm"
                       className="w-full h-7 text-xs bg-success/10 text-success border border-success/20 hover:bg-success hover:text-success-foreground transition-colors"
-                      onClick={() => handleConfirmarClick(cliente.id)}
+                      onClick={() => handleConfirmarClick(item.cliente.id)}
                       disabled={confirmarPagamentoRevisao.isPending}
                     >
-                      {confirmarPagamentoRevisao.isPending && pendingClienteId === cliente.id ? (
+                      {confirmarPagamentoRevisao.isPending && pendingClienteId === item.cliente.id ? (
                         <Loader2 className="w-3 h-3 animate-spin" />
                       ) : (
                         <>

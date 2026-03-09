@@ -108,7 +108,8 @@ export default function Dashboard() {
   const totalAReceber = clientesFiltrados.reduce((acc, c) => acc + c.valor_a_receber, 0);
   const clientesAtrasados = clientesFiltrados.filter((c) => c.status === 'Atrasado');
   const clientesEmRevisao = clientesFiltrados.filter((c) => c.em_revisao && c.status_cliente === 'ATIVO');
-  const valorEmAtraso = clientesAtrasados.reduce((acc, c) => acc + c.valor_parcela, 0);
+  const totalParcelasAtrasadas = clientesAtrasados.reduce((acc, c) => acc + c.parcelas_atrasadas, 0);
+  const valorEmAtraso = clientesAtrasados.reduce((acc, c) => acc + c.valor_parcela * c.parcelas_atrasadas, 0);
 
   // Helpers para cálculos do mês
   const parseDateOnlyISO = (dateStr: string): Date => {
@@ -235,11 +236,12 @@ export default function Dashboard() {
             variant={aReceberNoMes > 0 ? 'default' : 'success'} 
           />
           <KPICard 
-            title="Clientes Atrasados" 
-            value={clientesAtrasados.length.toString()} 
+            title="Parcelas Atrasadas" 
+            value={totalParcelasAtrasadas.toString()} 
+            subtitle={`${clientesAtrasados.length} ${clientesAtrasados.length === 1 ? 'cliente' : 'clientes'}`}
             icon={AlertTriangle} 
-            variant={clientesAtrasados.length > 0 ? 'destructive' : 'default'}
-            showPrivacyToggle={clientesAtrasados.length > 0}
+            variant={totalParcelasAtrasadas > 0 ? 'destructive' : 'default'}
+            showPrivacyToggle={totalParcelasAtrasadas > 0}
             isPrivate={hideClientNames}
             onPrivacyToggle={() => setHideClientNames(!hideClientNames)}
           />
