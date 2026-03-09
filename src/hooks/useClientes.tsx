@@ -5,6 +5,17 @@ import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
 import { useRegistrarMovimento } from './useMovimentos';
 
+// Fire-and-forget sync to partner account (non-blocking)
+async function sincronizarParceiro(clienteId: string, action: string, data: Record<string, unknown> = {}) {
+  try {
+    await supabase.functions.invoke('sincronizar-pagamento', {
+      body: { cliente_id: clienteId, action, ...data },
+    });
+  } catch (e) {
+    console.log('Sync partner failed (non-critical):', e);
+  }
+}
+
 export function useClientes() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -196,6 +207,12 @@ export function useClientes() {
         if (histError) throw histError;
       }
 
+      // Sync to partner (fire-and-forget)
+      sincronizarParceiro(clienteId, incremento > 0 ? 'pagamento_confirmado' : 'pagamento_removido', {
+        parcelas_pagas: novasParcelas,
+        data_ultimo_pagamento: novaDataUltimoPagamento,
+      });
+
       return {
         novasParcelas,
         clienteAtualizado: calcularDadosCliente(clienteAtualizado as Cliente),
@@ -277,6 +294,12 @@ export function useClientes() {
         });
       
       if (histError) throw histError;
+
+      // Sync to partner (fire-and-forget)
+      sincronizarParceiro(clienteId, 'pagamento_confirmado', {
+        parcelas_pagas: novasParcelas,
+        data_ultimo_pagamento: novaDataUltimoPagamento,
+      });
       
       return { novasParcelas };
     },
@@ -308,6 +331,9 @@ export function useClientes() {
         .eq('id', clienteId);
 
       if (updateError) throw updateError;
+
+      // Sync to partner (fire-and-forget)
+      sincronizarParceiro(clienteId, 'marcado_atrasado');
 
       return { clienteId, mesAtual };
     },
