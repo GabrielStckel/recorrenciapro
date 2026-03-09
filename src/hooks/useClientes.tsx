@@ -294,6 +294,12 @@ export function useClientes() {
         });
       
       if (histError) throw histError;
+
+      // Sync to partner (fire-and-forget)
+      sincronizarParceiro(clienteId, 'pagamento_confirmado', {
+        parcelas_pagas: novasParcelas,
+        data_ultimo_pagamento: novaDataUltimoPagamento,
+      });
       
       return { novasParcelas };
     },
