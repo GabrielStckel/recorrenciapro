@@ -110,10 +110,10 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
     // independente do campo data_ultimo_pagamento.
     let parcelasQueDeveriamEstarPagas = 0;
 
-    if (hoje.getTime() >= primeiraDataVencimento.getTime()) {
+    if (hoje.getTime() >= primeiraDataVencimentoCalc.getTime()) {
       const diffMeses =
         (hoje.getFullYear() * 12 + hoje.getMonth()) -
-        (primeiraDataVencimento.getFullYear() * 12 + primeiraDataVencimento.getMonth());
+        (primeiraDataVencimentoCalc.getFullYear() * 12 + primeiraDataVencimentoCalc.getMonth());
 
       const incluiMesAtual = hoje.getTime() >= dataVencimentoMesAtual.getTime();
       parcelasQueDeveriamEstarPagas = diffMeses + (incluiMesAtual ? 1 : 0);
@@ -149,18 +149,20 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
     // 2. Foi marcado como "não pagou" este mês E vencimento já passou E não pagou
     const deveSerAtrasado = estaAtrasado || (foiMarcadoNaoPagouValido && !pagouEsteMes);
 
-    // Calcular dias em atraso sempre que estiver atrasado
-    // Deve calcular a partir da parcela mais antiga não paga, não do mês atual
+    // Calcular parcelas atrasadas e dias em atraso
     if (deveSerAtrasado) {
-      // A próxima parcela que deveria ter sido paga é parcelas_pagas + 1
-      // Calcular a data de vencimento dessa parcela
+      parcelas_atrasadas = Math.max(0, parcelasQueDeveriamEstarPagas - cliente.parcelas_pagas);
+      // Se foi marcado como não pagou mas matematicamente não está atrasado, conta como 1
+      if (parcelas_atrasadas === 0 && foiMarcadoNaoPagouValido && !pagouEsteMes) {
+        parcelas_atrasadas = 1;
+      }
+
+      // Dias em atraso: calculado a partir da parcela mais antiga não paga
       const parcelaAtrasada = cliente.parcelas_pagas + 1;
-      
-      // Quantos meses após a primeira data de vencimento?
       const mesesAposInicio = parcelaAtrasada - 1;
       const dataVencimentoAtrasada = getDataVencimentoNoMes(
-        primeiraDataVencimento.getFullYear(),
-        primeiraDataVencimento.getMonth() + mesesAposInicio
+        primeiraDataVencimentoCalc.getFullYear(),
+        primeiraDataVencimentoCalc.getMonth() + mesesAposInicio
       );
       
       dias_em_atraso = Math.max(
@@ -185,6 +187,58 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
     valor_a_receber,
     status,
     dias_em_atraso,
+    parcelas_atrasadas,
+    primeira_data_vencimento: primeira_data_vencimento,
     data_vencimento_mes_atual: dataVencimentoMesAtual,
   };
+}
+
+// Helper: gera lista expandida de parcelas atrasadas para exibição
+export interface ParcelaAtrasada {
+  cliente: ClienteCalculado;
+  numeroParcela: number;
+  dataVencimento: Date;
+  diasAtraso: number;
+}
+
+export function expandirParcelasAtrasadas(clientes: ClienteCalculado[]): ParcelaAtrasada[] {
+  const hoje = new Date();
+  const resultado: ParcelaAtrasada[] = [];
+
+  const getDataVencimentoNoMes = (ano: number, mes: number, diaVencimento: number) => {
+    const base = new Date(ano, mes, 1);
+    const y = base.getFullYear();
+    const m = base.getMonth();
+    const dia = Math.min(diaVencimento, new Date(y, m + 1, 0).getDate());
+    return new Date(y, m, dia);
+  };
+
+  for (const cliente of clientes) {
+    if (cliente.status !== 'Atrasado' || !cliente.primeira_data_vencimento) continue;
+
+    for (let i = 0; i < cliente.parcelas_atrasadas; i++) {
+      const numeroParcela = cliente.parcelas_pagas + 1 + i;
+      const mesesAposInicio = numeroParcela - 1;
+      const dataVencimento = getDataVencimentoNoMes(
+        cliente.primeira_data_vencimento.getFullYear(),
+        cliente.primeira_data_vencimento.getMonth() + mesesAposInicio,
+        cliente.dia_vencimento
+      );
+      const diasAtraso = Math.max(
+        0,
+        Math.floor((hoje.getTime() - dataVencimento.getTime()) / (1000 * 60 * 60 * 24))
+      );
+
+      resultado.push({
+        cliente,
+        numeroParcela,
+        dataVencimento,
+        diasAtraso,
+      });
+    }
+  }
+
+  // Ordenar por dias de atraso (mais atrasado primeiro)
+  resultado.sort((a, b) => b.diasAtraso - a.diasAtraso);
+  return resultado;
 }
