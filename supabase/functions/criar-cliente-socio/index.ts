@@ -65,12 +65,14 @@ Deno.serve(async (req) => {
     const valorParceiro = Math.round(valorTotal * (percentual_parceiro / 100) * 100) / 100
 
     // Create client for current user
+    const sharedCreatedAt = new Date().toISOString()
     const { data: clienteUser, error: errUser } = await supabaseAdmin
       .from('clientes_parcelados')
       .insert({
         ...cliente_data,
         user_id: user.id,
         valor_total: valorUser,
+        created_at: sharedCreatedAt,
       })
       .select()
       .single()
