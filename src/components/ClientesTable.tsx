@@ -22,7 +22,8 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { PinDialog } from './PinDialog';
-import { Plus, Minus, History, Edit, Trash2, MoreHorizontal, Search, Clock, UserCheck, UserX, Pause, CheckCircle, ChevronDown, Filter, X } from 'lucide-react';
+import { VincularSocioDialog } from './VincularSocioDialog';
+import { Plus, Minus, History, Edit, Trash2, MoreHorizontal, Search, Clock, UserCheck, UserX, Pause, CheckCircle, ChevronDown, Filter, X, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ClientesTableProps {
