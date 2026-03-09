@@ -72,13 +72,21 @@ export default function ResetPassword() {
     }
   };
 
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   if (!isRecovery) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md glass">
           <CardHeader>
             <CardTitle>Link inválido</CardTitle>
-            <CardDescription>Este link de recuperação é inválido ou expirou.</CardDescription>
+            <CardDescription>Este link de recuperação é inválido ou expirou. Solicite um novo link na tela de login.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button className="w-full" onClick={() => navigate('/auth')}>
