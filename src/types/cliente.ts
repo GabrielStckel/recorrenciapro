@@ -89,6 +89,8 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
   // Status e atraso
   let status: StatusPagamento = 'Em dia';
   let dias_em_atraso = 0;
+  let parcelas_atrasadas = 0;
+  let primeira_data_vencimento: Date | null = null;
 
   // Só calcula status de pagamento para clientes ATIVOS com parcelas pendentes
   if (parcelas_pendentes > 0 && cliente.status_cliente === 'ATIVO') {
