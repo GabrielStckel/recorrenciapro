@@ -99,10 +99,12 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
     // Primeira data de vencimento: se o cliente começou antes/no dia de vencimento do mês,
     // o 1º vencimento é no próprio mês; se começou depois, é no mês seguinte.
     const vencimentoNoMesInicio = getDataVencimentoNoMes(dataInicio.getFullYear(), dataInicio.getMonth());
-    const primeiraDataVencimento =
+    const primeiraDataVencimentoCalc =
       dataInicio.getTime() <= vencimentoNoMesInicio.getTime()
         ? vencimentoNoMesInicio
         : getDataVencimentoNoMes(dataInicio.getFullYear(), dataInicio.getMonth() + 1);
+    
+    primeira_data_vencimento = primeiraDataVencimentoCalc;
 
     // Quantas parcelas já deveriam ter vencido até HOJE (baseado no calendário),
     // independente do campo data_ultimo_pagamento.
