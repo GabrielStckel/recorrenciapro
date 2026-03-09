@@ -81,6 +81,10 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos, hideV
   const [pinError, setPinError] = useState('');
   const [pendingAction, setPendingAction] = useState<{ clienteId: string; incremento: number } | null>(null);
 
+  // Estado para vincular sócio
+  const [vincularDialogOpen, setVincularDialogOpen] = useState(false);
+  const [clienteParaVincular, setClienteParaVincular] = useState<ClienteCalculado | null>(null);
+
   const formatCurrency = (value: number) => {
     if (hideValues) return '••••••';
     return new Intl.NumberFormat('pt-BR', {
