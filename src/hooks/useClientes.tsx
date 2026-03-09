@@ -207,6 +207,12 @@ export function useClientes() {
         if (histError) throw histError;
       }
 
+      // Sync to partner (fire-and-forget)
+      sincronizarParceiro(clienteId, incremento > 0 ? 'pagamento_confirmado' : 'pagamento_removido', {
+        parcelas_pagas: novasParcelas,
+        data_ultimo_pagamento: novaDataUltimoPagamento,
+      });
+
       return {
         novasParcelas,
         clienteAtualizado: calcularDadosCliente(clienteAtualizado as Cliente),
