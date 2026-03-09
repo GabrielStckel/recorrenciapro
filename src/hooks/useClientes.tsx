@@ -82,6 +82,9 @@ export function useClientes() {
 
   const deleteCliente = useMutation({
     mutationFn: async (id: string) => {
+      // Sync deletion to partner first (fire-and-forget)
+      sincronizarParceiro(id, 'cliente_deletado');
+
       const { error } = await supabase
         .from('clientes_parcelados')
         .delete()
