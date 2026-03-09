@@ -23,7 +23,8 @@ export default function ResetPassword() {
     // Check hash params for recovery type
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const type = hashParams.get('type');
-    if (type === 'recovery') {
+    const hasSessionTokens = hashParams.has('access_token') && hashParams.has('refresh_token');
+    if (type === 'recovery' || hasSessionTokens) {
       setIsRecovery(true);
     }
 
