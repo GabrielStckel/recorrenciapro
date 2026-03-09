@@ -156,6 +156,8 @@ export function useClientes() {
       if (limparRevisao) {
         updateData.em_revisao = false;
         updateData.mes_referencia_revisao = null;
+        updateData.valor_pago_parcial = null;
+        updateData.observacao_revisao = null;
       }
 
       // Update client (retorna o registro atualizado para atualizar o cache)
