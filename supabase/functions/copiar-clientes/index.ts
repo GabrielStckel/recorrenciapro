@@ -20,19 +20,24 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const anonKey = Deno.env.get('SUPABASE_PUBLISHABLE_KEY')!
 
-    const supabaseUser = createClient(supabaseUrl, Deno.env.get('SUPABASE_PUBLISHABLE_KEY')!, {
+    // Verify calling user
+    const supabaseUser = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     })
 
     const { data: { user }, error: userError } = await supabaseUser.auth.getUser()
     if (userError || !user) {
+      console.log('Auth error:', userError?.message)
       return new Response(JSON.stringify({ error: 'Não autenticado' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    const { email_socio, cliente_ids } = await req.json()
+    const body = await req.json()
+    const { email_socio, cliente_ids } = body
+    console.log('Request:', { email_socio, cliente_ids_count: cliente_ids?.length, user_id: user.id })
 
     if (!email_socio || !Array.isArray(cliente_ids) || cliente_ids.length === 0) {
       return new Response(JSON.stringify({ error: 'Email do sócio e lista de clientes são obrigatórios' }), {
@@ -42,16 +47,24 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey)
 
-    // Find partner by email
-    const { data: usersData, error: listError } = await supabaseAdmin.auth.admin.listUsers()
+    // Find partner by email using admin API with filter
+    const { data: usersData, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    })
+    
     if (listError) {
-      return new Response(JSON.stringify({ error: 'Erro ao buscar usuários' }), {
+      console.log('List users error:', listError.message)
+      return new Response(JSON.stringify({ error: 'Erro ao buscar usuários: ' + listError.message }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    const socio = usersData.users.find(u => u.email === email_socio.toLowerCase().trim())
+    const emailNormalized = email_socio.toLowerCase().trim()
+    const socio = usersData.users.find((u: any) => u.email?.toLowerCase() === emailNormalized)
+    
     if (!socio) {
+      console.log('Partner not found:', emailNormalized)
       return new Response(JSON.stringify({ error: 'Nenhuma conta encontrada com esse email' }), {
         status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -63,7 +76,9 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Get selected clients owned by current user
+    console.log('Partner found:', socio.id)
+
+    // Get selected clients
     const { data: clientes, error: clientesError } = await supabaseAdmin
       .from('clientes_parcelados')
       .select('*')
@@ -71,7 +86,8 @@ Deno.serve(async (req) => {
       .in('id', cliente_ids)
 
     if (clientesError) {
-      return new Response(JSON.stringify({ error: 'Erro ao buscar clientes' }), {
+      console.log('Fetch clients error:', clientesError.message)
+      return new Response(JSON.stringify({ error: 'Erro ao buscar clientes: ' + clientesError.message }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
@@ -82,8 +98,9 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Copy clients WITHOUT valor_total (set to 0 so partner fills in)
-    const clientesParaSocio = clientes.map(c => ({
+    console.log('Clients found:', clientes.length)
+
+    const clientesParaSocio = clientes.map((c: any) => ({
       user_id: socio.id,
       cliente_nome: c.cliente_nome,
       whatsapp: c.whatsapp,
@@ -104,10 +121,13 @@ Deno.serve(async (req) => {
       .insert(clientesParaSocio)
 
     if (insertError) {
+      console.log('Insert error:', insertError.message)
       return new Response(JSON.stringify({ error: 'Erro ao copiar clientes: ' + insertError.message }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+
+    console.log('Success: copied', clientes.length, 'clients')
 
     return new Response(JSON.stringify({
       success: true,
@@ -116,7 +136,8 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {
-    return new Response(JSON.stringify({ error: 'Erro interno: ' + err.message }), {
+    console.error('Unexpected error:', err)
+    return new Response(JSON.stringify({ error: 'Erro interno: ' + (err as Error).message }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }

@@ -61,7 +61,11 @@ export function CopiarClientesDialog({ open, onOpenChange, clientes }: CopiarCli
         body: { email_socio: emailSocio.trim(), cliente_ids: Array.from(selectedIds) },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Try to parse error body
+        const msg = typeof error === 'object' && 'message' in error ? error.message : String(error);
+        throw new Error(msg);
+      }
       if (data?.error) throw new Error(data.error);
 
       toast({ title: 'Clientes copiados!', description: data.message });
