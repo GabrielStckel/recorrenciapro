@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -65,9 +65,16 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
+  const [recoverCooldown, setRecoverCooldown] = useState(0);
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (recoverCooldown <= 0) return;
+    const timer = window.setTimeout(() => setRecoverCooldown((prev) => prev - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [recoverCooldown]);
 
   const handleSubmit = async (type: 'login' | 'signup') => {
     try {
@@ -117,15 +124,39 @@ export default function Auth() {
       toast({ title: 'Informe seu email', description: 'Digite seu email acima para receber o link de recuperação.', variant: 'destructive' });
       return;
     }
+
+    if (recoverCooldown > 0) {
+      toast({ title: 'Aguarde um momento', description: `Você poderá solicitar um novo link em ${recoverCooldown}s.`, variant: 'destructive' });
+      return;
+    }
+
     setLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
+
       if (error) {
-        toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+        const waitMatch = error.message.match(/after\s+(\d+)\s+seconds/i);
+        const waitSeconds = waitMatch ? Number(waitMatch[1]) : 60;
+
+        if (error.message.includes('only request this after') || error.message.includes('over_email_send_rate_limit')) {
+          setRecoverCooldown(waitSeconds);
+          toast({
+            title: 'Aguarde para reenviar',
+            description: `Por segurança, aguarde ${waitSeconds}s antes de pedir outro link.`,
+            variant: 'destructive',
+          });
+        } else {
+          toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+        }
       } else {
-        toast({ title: 'Email enviado ✉️', description: `Enviamos um link de recuperação para ${email}. Verifique sua caixa de entrada.`, duration: 10000 });
+        setRecoverCooldown(60);
+        toast({
+          title: 'Email enviado ✉️',
+          description: `Enviamos um link de recuperação para ${email}. Use o email mais recente e clique apenas uma vez no link.`,
+          duration: 10000,
+        });
         setForgotMode(false);
       }
     } catch {
@@ -168,9 +199,9 @@ export default function Auth() {
                     onKeyDown={(e) => e.key === 'Enter' && handleForgotPassword()}
                   />
                 </div>
-                <Button className="w-full" onClick={handleForgotPassword} disabled={loading}>
+                <Button className="w-full" onClick={handleForgotPassword} disabled={loading || recoverCooldown > 0}>
                   {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Enviar Link de Recuperação
+                  {recoverCooldown > 0 ? `Aguarde ${recoverCooldown}s` : 'Enviar Link de Recuperação'}
                 </Button>
                 <Button variant="ghost" className="w-full gap-2" onClick={() => setForgotMode(false)}>
                   <ArrowLeft className="w-4 h-4" /> Voltar ao login
