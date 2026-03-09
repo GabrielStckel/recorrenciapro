@@ -282,7 +282,7 @@ export default function Dashboard() {
         <CopiarClientesDialog
           open={copiarDialogOpen}
           onOpenChange={setCopiarDialogOpen}
-          totalClientes={clientes.length}
+          clientes={clientes}
         />
       </div>
     </Layout>
