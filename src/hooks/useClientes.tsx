@@ -381,6 +381,9 @@ export function useClientes() {
         .eq('id', clienteId);
       
       if (error) throw error;
+
+      // Sync to partner
+      sincronizarParceiro(clienteId, 'entrou_revisao', { mes_referencia: mesReferencia });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
