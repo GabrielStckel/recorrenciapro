@@ -66,6 +66,10 @@ export function useClientes() {
         .single();
       
       if (error) throw error;
+
+      // Sync editable fields to partner (fire-and-forget)
+      sincronizarParceiro(id, 'cliente_editado', updates as Record<string, unknown>);
+
       return data;
     },
     onSuccess: () => {
@@ -78,6 +82,9 @@ export function useClientes() {
 
   const deleteCliente = useMutation({
     mutationFn: async (id: string) => {
+      // Sync deletion to partner first (fire-and-forget)
+      sincronizarParceiro(id, 'cliente_deletado');
+
       const { error } = await supabase
         .from('clientes_parcelados')
         .delete()
@@ -374,6 +381,9 @@ export function useClientes() {
         .eq('id', clienteId);
       
       if (error) throw error;
+
+      // Sync to partner
+      sincronizarParceiro(clienteId, 'entrou_revisao', { mes_referencia: mesReferencia });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
@@ -392,6 +402,12 @@ export function useClientes() {
         .eq('id', clienteId);
       
       if (error) throw error;
+
+      // Sync to partner
+      sincronizarParceiro(clienteId, 'pagamento_parcial', {
+        valor_pago_parcial: valorPagoParcial,
+        observacao_revisao: observacao,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clientes'] });

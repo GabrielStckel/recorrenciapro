@@ -30,7 +30,8 @@ Deno.serve(async (req) => {
       })
     }
 
-    const { cliente_id, action, parcelas_pagas, data_ultimo_pagamento } = await req.json()
+    const body = await req.json()
+    const { cliente_id, action } = body
 
     if (!cliente_id || !action) {
       return new Response(JSON.stringify({ error: 'cliente_id e action são obrigatórios' }), {
@@ -39,7 +40,6 @@ Deno.serve(async (req) => {
     }
 
     // Find linked partner client
-    // Check both directions: user could be owner or partner
     const { data: links, error: linkError } = await supabaseAdmin
       .from('clientes_vinculados')
       .select('*')
@@ -53,68 +53,48 @@ Deno.serve(async (req) => {
     }
 
     if (!links || links.length === 0) {
-      // No link found - not an error, just no sync needed
       return new Response(JSON.stringify({ synced: false, reason: 'Cliente não vinculado' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
     const link = links[0]
-    // Determine partner's client ID
-    const parceiroClienteId = link.cliente_id === cliente_id 
-      ? link.cliente_parceiro_id 
+    const parceiroClienteId = link.cliente_id === cliente_id
+      ? link.cliente_parceiro_id
       : link.cliente_id
 
     console.log(`Syncing action "${action}" from ${cliente_id} to partner ${parceiroClienteId}`)
 
+    let updateError = null
+
     if (action === 'pagamento_confirmado') {
-      // Sync: update partner's parcelas_pagas and data_ultimo_pagamento
-      const updateData: Record<string, unknown> = {
-        parcelas_pagas: parcelas_pagas,
-        data_ultimo_pagamento: data_ultimo_pagamento,
-        em_revisao: false,
-        mes_referencia_revisao: null,
-        valor_pago_parcial: null,
-        observacao_revisao: null,
-      }
-
-      const { error: updateError } = await supabaseAdmin
+      const { error } = await supabaseAdmin
         .from('clientes_parcelados')
-        .update(updateData)
-        .eq('id', parceiroClienteId)
-
-      if (updateError) {
-        console.log('Error syncing payment:', updateError.message)
-        return new Response(JSON.stringify({ synced: false, reason: updateError.message }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        .update({
+          parcelas_pagas: body.parcelas_pagas,
+          data_ultimo_pagamento: body.data_ultimo_pagamento,
+          em_revisao: false,
+          mes_referencia_revisao: null,
+          valor_pago_parcial: null,
+          observacao_revisao: null,
         })
-      }
+        .eq('id', parceiroClienteId)
+      updateError = error
 
-      console.log('Payment synced successfully')
     } else if (action === 'pagamento_removido') {
-      // Sync: decrement partner's parcelas
-      const updateData: Record<string, unknown> = {
-        parcelas_pagas: parcelas_pagas,
-        data_ultimo_pagamento: data_ultimo_pagamento,
-      }
-
-      const { error: updateError } = await supabaseAdmin
+      const { error } = await supabaseAdmin
         .from('clientes_parcelados')
-        .update(updateData)
-        .eq('id', parceiroClienteId)
-
-      if (updateError) {
-        console.log('Error syncing removal:', updateError.message)
-        return new Response(JSON.stringify({ synced: false, reason: updateError.message }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        .update({
+          parcelas_pagas: body.parcelas_pagas,
+          data_ultimo_pagamento: body.data_ultimo_pagamento,
         })
-      }
+        .eq('id', parceiroClienteId)
+      updateError = error
+
     } else if (action === 'marcado_atrasado') {
-      // Sync: mark partner as late too
       const hoje = new Date()
       const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
-
-      const { error: updateError } = await supabaseAdmin
+      const { error } = await supabaseAdmin
         .from('clientes_parcelados')
         .update({
           em_revisao: false,
@@ -123,21 +103,84 @@ Deno.serve(async (req) => {
           observacao_revisao: null,
         })
         .eq('id', parceiroClienteId)
+      updateError = error
 
-      if (updateError) {
-        console.log('Error syncing late status:', updateError.message)
-      }
     } else if (action === 'status_alterado') {
-      // Sync status change (ATIVO, PAUSADO, etc.)
-      const { status_cliente } = await req.json().catch(() => ({}))
-      if (status_cliente) {
-        await supabaseAdmin
+      const { error } = await supabaseAdmin
+        .from('clientes_parcelados')
+        .update({ status_cliente: body.status_cliente })
+        .eq('id', parceiroClienteId)
+      updateError = error
+
+    } else if (action === 'cliente_editado') {
+      // Sync editable fields (excluding valor_total which is % based)
+      const syncFields: Record<string, unknown> = {}
+      if (body.cliente_nome !== undefined) syncFields.cliente_nome = body.cliente_nome
+      if (body.whatsapp !== undefined) syncFields.whatsapp = body.whatsapp
+      if (body.produto !== undefined) syncFields.produto = body.produto
+      if (body.total_parcelas !== undefined) syncFields.total_parcelas = body.total_parcelas
+      if (body.parcelas_pagas !== undefined) syncFields.parcelas_pagas = body.parcelas_pagas
+      if (body.dia_vencimento !== undefined) syncFields.dia_vencimento = body.dia_vencimento
+      if (body.data_inicio !== undefined) syncFields.data_inicio = body.data_inicio
+      if (body.data_ultimo_pagamento !== undefined) syncFields.data_ultimo_pagamento = body.data_ultimo_pagamento
+      if (body.em_revisao !== undefined) syncFields.em_revisao = body.em_revisao
+      if (body.mes_referencia_revisao !== undefined) syncFields.mes_referencia_revisao = body.mes_referencia_revisao
+      if (body.valor_pago_parcial !== undefined) syncFields.valor_pago_parcial = body.valor_pago_parcial
+      if (body.observacao_revisao !== undefined) syncFields.observacao_revisao = body.observacao_revisao
+
+      if (Object.keys(syncFields).length > 0) {
+        const { error } = await supabaseAdmin
           .from('clientes_parcelados')
-          .update({ status_cliente })
+          .update(syncFields)
           .eq('id', parceiroClienteId)
+        updateError = error
       }
+
+    } else if (action === 'cliente_deletado') {
+      // Delete partner's client and the link
+      const { error: delError } = await supabaseAdmin
+        .from('clientes_parcelados')
+        .delete()
+        .eq('id', parceiroClienteId)
+      updateError = delError
+
+      // Link will be cascade-deleted via FK if set, otherwise delete manually
+      if (!updateError) {
+        await supabaseAdmin
+          .from('clientes_vinculados')
+          .delete()
+          .or(`cliente_id.eq.${cliente_id},cliente_parceiro_id.eq.${cliente_id}`)
+      }
+
+    } else if (action === 'entrou_revisao') {
+      const { error } = await supabaseAdmin
+        .from('clientes_parcelados')
+        .update({
+          em_revisao: true,
+          mes_referencia_revisao: body.mes_referencia,
+        })
+        .eq('id', parceiroClienteId)
+      updateError = error
+
+    } else if (action === 'pagamento_parcial') {
+      const { error } = await supabaseAdmin
+        .from('clientes_parcelados')
+        .update({
+          valor_pago_parcial: body.valor_pago_parcial,
+          observacao_revisao: body.observacao_revisao,
+        })
+        .eq('id', parceiroClienteId)
+      updateError = error
     }
 
+    if (updateError) {
+      console.log(`Error syncing ${action}:`, updateError.message)
+      return new Response(JSON.stringify({ synced: false, reason: updateError.message }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    console.log(`Action "${action}" synced successfully`)
     return new Response(JSON.stringify({ synced: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
