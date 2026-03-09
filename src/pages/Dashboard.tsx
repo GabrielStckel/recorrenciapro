@@ -180,6 +180,16 @@ export default function Dashboard() {
               </SelectContent>
             </Select>
             <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCopiarDialogOpen(true)}
+              className="gap-1.5"
+              title="Copiar clientes para sócio"
+            >
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Sócio</span>
+            </Button>
+            <Button
               variant="ghost"
               size="icon"
               onClick={handleRefresh}
