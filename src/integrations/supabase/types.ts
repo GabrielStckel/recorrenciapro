@@ -77,6 +77,54 @@ export type Database = {
         }
         Relationships: []
       }
+      clientes_vinculados: {
+        Row: {
+          cliente_id: string
+          cliente_parceiro_id: string
+          created_at: string
+          id: string
+          parceiro_user_id: string
+          percentual_parceiro: number
+          percentual_user: number
+          user_id: string
+        }
+        Insert: {
+          cliente_id: string
+          cliente_parceiro_id: string
+          created_at?: string
+          id?: string
+          parceiro_user_id: string
+          percentual_parceiro: number
+          percentual_user: number
+          user_id: string
+        }
+        Update: {
+          cliente_id?: string
+          cliente_parceiro_id?: string
+          created_at?: string
+          id?: string
+          parceiro_user_id?: string
+          percentual_parceiro?: number
+          percentual_user?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clientes_vinculados_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes_parcelados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clientes_vinculados_cliente_parceiro_id_fkey"
+            columns: ["cliente_parceiro_id"]
+            isOneToOne: false
+            referencedRelation: "clientes_parcelados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       historico_pagamentos: {
         Row: {
           cliente_id: string
