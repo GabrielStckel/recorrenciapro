@@ -381,6 +381,7 @@ export function useClientes() {
     confirmarPagamentoRevisao,
     marcarComoAtrasado,
     entrarEmRevisao,
+    registrarPagamentoParcial,
   };
 }
 
