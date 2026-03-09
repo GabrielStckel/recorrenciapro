@@ -582,6 +582,13 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos, hideV
         title="Confirmar Pagamento"
         description="Digite seu PIN para confirmar o registro de pagamento"
       />
+
+      {/* Vincular Sócio Dialog */}
+      <VincularSocioDialog
+        open={vincularDialogOpen}
+        onClose={() => { setVincularDialogOpen(false); setClienteParaVincular(null); }}
+        cliente={clienteParaVincular}
+      />
     </div>
   );
 }
