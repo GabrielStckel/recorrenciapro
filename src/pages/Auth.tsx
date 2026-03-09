@@ -124,15 +124,39 @@ export default function Auth() {
       toast({ title: 'Informe seu email', description: 'Digite seu email acima para receber o link de recuperação.', variant: 'destructive' });
       return;
     }
+
+    if (recoverCooldown > 0) {
+      toast({ title: 'Aguarde um momento', description: `Você poderá solicitar um novo link em ${recoverCooldown}s.`, variant: 'destructive' });
+      return;
+    }
+
     setLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
+
       if (error) {
-        toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+        const waitMatch = error.message.match(/after\s+(\d+)\s+seconds/i);
+        const waitSeconds = waitMatch ? Number(waitMatch[1]) : 60;
+
+        if (error.message.includes('only request this after') || error.message.includes('over_email_send_rate_limit')) {
+          setRecoverCooldown(waitSeconds);
+          toast({
+            title: 'Aguarde para reenviar',
+            description: `Por segurança, aguarde ${waitSeconds}s antes de pedir outro link.`,
+            variant: 'destructive',
+          });
+        } else {
+          toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+        }
       } else {
-        toast({ title: 'Email enviado ✉️', description: `Enviamos um link de recuperação para ${email}. Verifique sua caixa de entrada.`, duration: 10000 });
+        setRecoverCooldown(60);
+        toast({
+          title: 'Email enviado ✉️',
+          description: `Enviamos um link de recuperação para ${email}. Use o email mais recente e clique apenas uma vez no link.`,
+          duration: 10000,
+        });
         setForgotMode(false);
       }
     } catch {
