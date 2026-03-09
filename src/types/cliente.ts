@@ -40,6 +40,8 @@ export interface ClienteCalculado extends Cliente {
   valor_a_receber: number;
   status: StatusPagamento;
   dias_em_atraso: number;
+  parcelas_atrasadas: number;
+  primeira_data_vencimento: Date | null;
   data_vencimento_mes_atual: Date;
 }
 
