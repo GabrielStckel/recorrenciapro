@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useClientes } from '@/hooks/useClientes';
+import { supabase } from '@/integrations/supabase/client';
 import { useHideValues } from '@/hooks/useHideValues';
 import { Layout } from '@/components/Layout';
 import { KPICard } from '@/components/KPICard';
@@ -31,6 +32,21 @@ export default function Dashboard() {
   const [hideClientNames, setHideClientNames] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [copiarDialogOpen, setCopiarDialogOpen] = useState(false);
+
+  // Sync partner clients on dashboard open
+  useEffect(() => {
+    const syncPartnerClients = async () => {
+      try {
+        const { error } = await supabase.functions.invoke('sincronizar-clientes-parceiro');
+        if (!error) {
+          queryClient.invalidateQueries({ queryKey: ['clientes'] });
+        }
+      } catch (e) {
+        console.log('Partner sync on open failed (non-critical):', e);
+      }
+    };
+    syncPartnerClients();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
