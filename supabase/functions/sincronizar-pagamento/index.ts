@@ -127,6 +127,7 @@ Deno.serve(async (req) => {
       if (body.mes_referencia_revisao !== undefined) syncFields.mes_referencia_revisao = body.mes_referencia_revisao
       if (body.valor_pago_parcial !== undefined) syncFields.valor_pago_parcial = body.valor_pago_parcial
       if (body.observacao_revisao !== undefined) syncFields.observacao_revisao = body.observacao_revisao
+      if (body.status_cliente !== undefined) syncFields.status_cliente = body.status_cliente
 
       if (Object.keys(syncFields).length > 0) {
         const { error } = await supabaseAdmin
