@@ -5,6 +5,17 @@ import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
 import { useRegistrarMovimento } from './useMovimentos';
 
+// Fire-and-forget sync to partner account (non-blocking)
+async function sincronizarParceiro(clienteId: string, action: string, data: Record<string, unknown> = {}) {
+  try {
+    await supabase.functions.invoke('sincronizar-pagamento', {
+      body: { cliente_id: clienteId, action, ...data },
+    });
+  } catch (e) {
+    console.log('Sync partner failed (non-critical):', e);
+  }
+}
+
 export function useClientes() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
