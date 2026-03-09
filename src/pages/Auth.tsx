@@ -88,6 +88,11 @@ export default function Auth() {
           navigate('/');
         }
       } else {
+        if (password !== confirmPassword) {
+          toast({ title: 'Erro de validação', description: 'As senhas não coincidem', variant: 'destructive' });
+          setLoading(false);
+          return;
+        }
         const { error } = await signUp(email, password);
         if (error) {
           let message = error.message;
@@ -97,6 +102,7 @@ export default function Auth() {
           toast({ title: 'Verifique seu email ✉️', description: 'Enviamos um link de confirmação para ' + email, duration: 10000 });
           setEmail('');
           setPassword('');
+          setConfirmPassword('');
         }
       }
     } catch {
