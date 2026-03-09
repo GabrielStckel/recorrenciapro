@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { lovable } from '@/integrations/lovable/index';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,9 +22,11 @@ function SocialLoginButtons({ loading, setLoading }: { loading: boolean; setLoad
   const handleOAuth = async (provider: 'google' | 'apple') => {
     try {
       setLoading(true);
+      const { lovable } = await import('@/integrations/lovable/index');
       const { error } = await lovable.auth.signInWithOAuth(provider, {
         redirect_uri: window.location.origin,
       });
+
       if (error) {
         toast({
           title: 'Erro',
@@ -36,7 +37,7 @@ function SocialLoginButtons({ loading, setLoading }: { loading: boolean; setLoad
     } catch {
       toast({
         title: 'Erro inesperado',
-        description: 'Por favor, tente novamente.',
+        description: 'Login social indisponível no momento. Tente novamente.',
         variant: 'destructive',
       });
     } finally {
