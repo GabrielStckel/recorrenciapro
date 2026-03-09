@@ -70,6 +70,12 @@ export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  useEffect(() => {
+    if (recoverCooldown <= 0) return;
+    const timer = window.setTimeout(() => setRecoverCooldown((prev) => prev - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [recoverCooldown]);
+
   const handleSubmit = async (type: 'login' | 'signup') => {
     try {
       const result = authSchema.safeParse({ email, password });
