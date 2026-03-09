@@ -156,6 +156,8 @@ export function useClientes() {
       if (limparRevisao) {
         updateData.em_revisao = false;
         updateData.mes_referencia_revisao = null;
+        updateData.valor_pago_parcial = null;
+        updateData.observacao_revisao = null;
       }
 
       // Update client (retorna o registro atualizado para atualizar o cache)
@@ -246,6 +248,8 @@ export function useClientes() {
           data_ultimo_pagamento: novaDataUltimoPagamento,
           em_revisao: false,
           mes_referencia_revisao: null,
+          valor_pago_parcial: null,
+          observacao_revisao: null,
         })
         .eq('id', clienteId);
       
@@ -298,6 +302,8 @@ export function useClientes() {
         .update({
           em_revisao: false,
           mes_referencia_revisao: mesAtual,
+          valor_pago_parcial: null,
+          observacao_revisao: null,
         })
         .eq('id', clienteId);
 
@@ -346,7 +352,28 @@ export function useClientes() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
     },
-    // No toast on error - this mutation runs automatically and silently
+  });
+
+  // Mutation to register partial payment
+  const registrarPagamentoParcial = useMutation({
+    mutationFn: async ({ clienteId, valorPagoParcial, observacao }: { clienteId: string; valorPagoParcial: number; observacao: string | null }) => {
+      const { error } = await supabase
+        .from('clientes_parcelados')
+        .update({
+          valor_pago_parcial: valorPagoParcial,
+          observacao_revisao: observacao,
+        })
+        .eq('id', clienteId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clientes'] });
+      toast({ title: 'Pagamento parcial registrado!' });
+    },
+    onError: (error) => {
+      toast({ title: 'Erro ao registrar pagamento parcial', description: error.message, variant: 'destructive' });
+    },
   });
 
   return {
@@ -360,6 +387,7 @@ export function useClientes() {
     confirmarPagamentoRevisao,
     marcarComoAtrasado,
     entrarEmRevisao,
+    registrarPagamentoParcial,
   };
 }
 
