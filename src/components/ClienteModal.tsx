@@ -153,18 +153,10 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
 
   const handlePercentualUserChange = (val: string) => {
     setPercentualUser(val);
-    const num = parseFloat(val);
-    if (!isNaN(num) && num >= 0 && num <= 100) {
-      setPercentualParceiro((100 - num).toString());
-    }
   };
 
   const handlePercentualParceiroChange = (val: string) => {
     setPercentualParceiro(val);
-    const num = parseFloat(val);
-    if (!isNaN(num) && num >= 0 && num <= 100) {
-      setPercentualUser((100 - num).toString());
-    }
   };
 
   const handleSubmit = async () => {
