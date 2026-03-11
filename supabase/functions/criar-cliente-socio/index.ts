@@ -84,6 +84,22 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Ensure product exists in partner's account
+    if (cliente_data.produto) {
+      const { data: existingProduto } = await supabaseAdmin
+        .from('produtos')
+        .select('id')
+        .eq('user_id', socio.id)
+        .eq('nome', cliente_data.produto)
+        .maybeSingle()
+
+      if (!existingProduto) {
+        await supabaseAdmin
+          .from('produtos')
+          .insert({ nome: cliente_data.produto, user_id: socio.id })
+      }
+    }
+
     // Create client for partner
     const { data: clienteParceiro, error: errParceiro } = await supabaseAdmin
       .from('clientes_parcelados')

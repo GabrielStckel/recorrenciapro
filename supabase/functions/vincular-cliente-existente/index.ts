@@ -109,6 +109,22 @@ Deno.serve(async (req) => {
       // Found matching client in partner's account
       clienteParceiroId = clientesParceiro[0].id
     } else {
+      // Ensure product exists in partner's account
+      if (cliente.produto) {
+        const { data: existingProduto } = await supabaseAdmin
+          .from('produtos')
+          .select('id')
+          .eq('user_id', socio.id)
+          .eq('nome', cliente.produto)
+          .maybeSingle()
+
+        if (!existingProduto) {
+          await supabaseAdmin
+            .from('produtos')
+            .insert({ nome: cliente.produto, user_id: socio.id })
+        }
+      }
+
       // Create client in partner's account with proportional value
       const valorParceiro = cliente.valor_total * (percentual_parceiro / 100)
       const { data: novoCiente, error: insertError } = await supabaseAdmin

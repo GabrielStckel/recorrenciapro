@@ -96,6 +96,23 @@ Deno.serve(async (req) => {
 
     console.log('Clients found:', clientes.length)
 
+    // Ensure all products exist in partner's account
+    const produtosUnicos = [...new Set(clientes.map((c: any) => c.produto).filter(Boolean))]
+    for (const produto of produtosUnicos) {
+      const { data: existingProduto } = await supabaseAdmin
+        .from('produtos')
+        .select('id')
+        .eq('user_id', socio.id)
+        .eq('nome', produto)
+        .maybeSingle()
+
+      if (!existingProduto) {
+        await supabaseAdmin
+          .from('produtos')
+          .insert({ nome: produto, user_id: socio.id })
+      }
+    }
+
     const clientesParaSocio = clientes.map((c: any) => ({
       user_id: socio.id,
       cliente_nome: c.cliente_nome,
