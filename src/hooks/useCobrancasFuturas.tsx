@@ -13,7 +13,14 @@ export interface CobrancaFutura {
   link_pagamento: string | null;
   produto: string | null;
   observacao: string | null;
-  status: string; // PENDENTE | ENVIADO | CONVERTIDO
+  status: string;
+  valor_total: number;
+  total_parcelas: number;
+  dia_vencimento: number;
+  com_socio: boolean;
+  email_socio: string | null;
+  percentual_user: number;
+  percentual_parceiro: number;
   created_at: string;
   updated_at: string;
 }
@@ -86,7 +93,6 @@ export function useCobrancasFuturas() {
 
   const converterEmCliente = useMutation({
     mutationFn: async (cobranca: CobrancaFutura) => {
-      // Mark as converted
       const { error } = await supabase
         .from('cobrancas_futuras')
         .update({ status: 'CONVERTIDO' })

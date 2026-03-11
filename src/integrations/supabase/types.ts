@@ -128,44 +128,65 @@ export type Database = {
       cobrancas_futuras: {
         Row: {
           cliente_nome: string
+          com_socio: boolean | null
           created_at: string
           data_envio_link: string
+          dia_vencimento: number | null
+          email_socio: string | null
           id: string
           link_pagamento: string | null
           observacao: string | null
+          percentual_parceiro: number | null
+          percentual_user: number | null
           produto: string | null
           status: string
+          total_parcelas: number | null
           updated_at: string
           user_id: string
           valor_a_vista: number
+          valor_total: number | null
           whatsapp: string | null
         }
         Insert: {
           cliente_nome: string
+          com_socio?: boolean | null
           created_at?: string
           data_envio_link: string
+          dia_vencimento?: number | null
+          email_socio?: string | null
           id?: string
           link_pagamento?: string | null
           observacao?: string | null
+          percentual_parceiro?: number | null
+          percentual_user?: number | null
           produto?: string | null
           status?: string
+          total_parcelas?: number | null
           updated_at?: string
           user_id: string
           valor_a_vista?: number
+          valor_total?: number | null
           whatsapp?: string | null
         }
         Update: {
           cliente_nome?: string
+          com_socio?: boolean | null
           created_at?: string
           data_envio_link?: string
+          dia_vencimento?: number | null
+          email_socio?: string | null
           id?: string
           link_pagamento?: string | null
           observacao?: string | null
+          percentual_parceiro?: number | null
+          percentual_user?: number | null
           produto?: string | null
           status?: string
+          total_parcelas?: number | null
           updated_at?: string
           user_id?: string
           valor_a_vista?: number
+          valor_total?: number | null
           whatsapp?: string | null
         }
         Relationships: []
