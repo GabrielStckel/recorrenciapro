@@ -294,10 +294,16 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
 
   const isLoading = addCliente.isPending || updateCliente.isPending || isSavingWithPartner;
 
-  const valorParsed = parseBrazilianCurrency(formData.valor_total);
+  const valorParcelaCalc = parseBrazilianCurrency(formData.valor_parcela);
+  const totalParcelasCalc = parseInt(formData.total_parcelas, 10);
+  const valorTotalCalc = !isNaN(valorParcelaCalc) && !isNaN(totalParcelasCalc) && totalParcelasCalc > 0
+    ? Math.round(valorParcelaCalc * totalParcelasCalc * 100) / 100 : 0;
   const pctUser = parseFloat(percentualUser);
   const pctParceiro = parseFloat(percentualParceiro);
-  const showPreview = comSocio && !isNaN(valorParsed) && valorParsed > 0 && !isNaN(pctUser) && !isNaN(pctParceiro);
+  const valorParcelaParceiro = !isNaN(valorParcelaCalc) && valorParcelaCalc > 0 && !isNaN(pctUser) && pctUser > 0 && !isNaN(pctParceiro) && pctParceiro > 0
+    ? Math.round(valorParcelaCalc * (pctParceiro / pctUser) * 100) / 100 : 0;
+  const valorTotalParceiro = valorParcelaParceiro * (totalParcelasCalc || 0);
+  const showPreview = comSocio && valorParcelaCalc > 0 && pctUser > 0 && pctParceiro > 0;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
