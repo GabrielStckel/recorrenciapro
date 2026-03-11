@@ -72,9 +72,10 @@ interface ClienteModalProps {
   open: boolean;
   onClose: () => void;
   cliente?: ClienteCalculado | null;
+  prefilledCobranca?: { cliente_nome?: string; whatsapp?: string | null; produto?: string | null } | null;
 }
 
-export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
+export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: ClienteModalProps) {
   const { addCliente, updateCliente } = useClientes();
   const { produtos, addProduto } = useProdutos();
   const { toast } = useToast();
