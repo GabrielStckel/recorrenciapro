@@ -400,15 +400,15 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
 
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="valor_total">Valor Total (R$) *</Label>
+              <Label htmlFor="valor_parcela">Valor da Parcela (R$) *</Label>
               <Input
-                id="valor_total"
+                id="valor_parcela"
                 type="text"
                 inputMode="numeric"
-                value={formData.valor_total}
+                value={formData.valor_parcela}
                 onChange={(e) => {
                   const cents = toCents(e.target.value);
-                  setFormData({ ...formData, valor_total: formatCurrencyInput(cents) });
+                  setFormData({ ...formData, valor_parcela: formatCurrencyInput(cents) });
                 }}
                 placeholder="0,00"
               />
