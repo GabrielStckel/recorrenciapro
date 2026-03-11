@@ -103,7 +103,7 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
     cliente_nome: '',
     whatsapp: '',
     produto: '',
-    valor_total: '',
+    valor_parcela: '',
     total_parcelas: '',
     parcelas_pagas: '0',
     dia_vencimento: '10',
