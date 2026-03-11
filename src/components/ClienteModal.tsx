@@ -126,21 +126,24 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
       });
       setComSocio(false);
     } else {
+      const pVT = prefilledCobranca?.valor_total;
+      const pTP = prefilledCobranca?.total_parcelas;
+      const pDV = prefilledCobranca?.dia_vencimento;
       setFormData({
         cliente_nome: prefilledCobranca?.cliente_nome || '',
         whatsapp: prefilledCobranca?.whatsapp || '',
         produto: prefilledCobranca?.produto || '',
-        valor_total: '',
-        total_parcelas: '',
+        valor_total: pVT ? formatCurrencyInput(Math.round(pVT * 100)) : '',
+        total_parcelas: pTP ? pTP.toString() : '',
         parcelas_pagas: '0',
-        dia_vencimento: '10',
+        dia_vencimento: pDV ? pDV.toString() : '10',
         data_inicio: formatDateOnlyISO(new Date()),
         status_cliente: 'ATIVO',
       });
-      setComSocio(false);
-      setEmailSocio('');
-      setPercentualUser('50');
-      setPercentualParceiro('50');
+      setComSocio(prefilledCobranca?.com_socio || false);
+      setEmailSocio(prefilledCobranca?.email_socio || '');
+      setPercentualUser(prefilledCobranca?.percentual_user?.toString() || '50');
+      setPercentualParceiro(prefilledCobranca?.percentual_parceiro?.toString() || '50');
     }
   }, [cliente, open, prefilledCobranca]);
 
