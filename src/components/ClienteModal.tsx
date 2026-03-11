@@ -114,9 +114,9 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
       setComSocio(false);
     } else {
       setFormData({
-        cliente_nome: '',
-        whatsapp: '',
-        produto: '',
+        cliente_nome: prefilledCobranca?.cliente_nome || '',
+        whatsapp: prefilledCobranca?.whatsapp || '',
+        produto: prefilledCobranca?.produto || '',
         valor_total: '',
         total_parcelas: '',
         parcelas_pagas: '0',
@@ -129,7 +129,7 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
       setPercentualUser('50');
       setPercentualParceiro('50');
     }
-  }, [cliente, open]);
+  }, [cliente, open, prefilledCobranca]);
 
   const handlePercentualUserChange = (val: string) => {
     setPercentualUser(val);
