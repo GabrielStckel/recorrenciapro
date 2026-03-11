@@ -113,11 +113,13 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
 
   useEffect(() => {
     if (cliente) {
+      // Calculate valor_parcela from valor_total / total_parcelas
+      const valorParcela = cliente.total_parcelas > 0 ? cliente.valor_total / cliente.total_parcelas : cliente.valor_total;
       setFormData({
         cliente_nome: cliente.cliente_nome,
         whatsapp: cliente.whatsapp || '',
         produto: cliente.produto,
-        valor_total: formatCurrencyInput(Math.round(cliente.valor_total * 100)),
+        valor_parcela: formatCurrencyInput(Math.round(valorParcela * 100)),
         total_parcelas: cliente.total_parcelas.toString(),
         parcelas_pagas: cliente.parcelas_pagas.toString(),
         dia_vencimento: cliente.dia_vencimento.toString(),
@@ -129,11 +131,13 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
       const pVT = prefilledCobranca?.valor_total;
       const pTP = prefilledCobranca?.total_parcelas;
       const pDV = prefilledCobranca?.dia_vencimento;
+      // If prefilled has valor_total, convert to valor_parcela
+      const valorParcela = (pVT && pTP && pTP > 0) ? pVT / pTP : pVT;
       setFormData({
         cliente_nome: prefilledCobranca?.cliente_nome || '',
         whatsapp: prefilledCobranca?.whatsapp || '',
         produto: prefilledCobranca?.produto || '',
-        valor_total: pVT ? formatCurrencyInput(Math.round(pVT * 100)) : '',
+        valor_parcela: valorParcela ? formatCurrencyInput(Math.round(valorParcela * 100)) : '',
         total_parcelas: pTP ? pTP.toString() : '',
         parcelas_pagas: '0',
         dia_vencimento: pDV ? pDV.toString() : '10',
