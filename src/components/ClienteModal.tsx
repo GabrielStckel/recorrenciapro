@@ -68,11 +68,24 @@ const clienteSchema = z.object({
   }).int('Dia deve ser número inteiro').min(1, 'Dia deve ser entre 1 e 31').max(31, 'Dia deve ser entre 1 e 31'),
 });
 
+interface PrefilledCobranca {
+  cliente_nome?: string;
+  whatsapp?: string | null;
+  produto?: string | null;
+  valor_total?: number;
+  total_parcelas?: number;
+  dia_vencimento?: number;
+  com_socio?: boolean;
+  email_socio?: string | null;
+  percentual_user?: number;
+  percentual_parceiro?: number;
+}
+
 interface ClienteModalProps {
   open: boolean;
   onClose: () => void;
   cliente?: ClienteCalculado | null;
-  prefilledCobranca?: { cliente_nome?: string; whatsapp?: string | null; produto?: string | null } | null;
+  prefilledCobranca?: PrefilledCobranca | null;
 }
 
 export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: ClienteModalProps) {
