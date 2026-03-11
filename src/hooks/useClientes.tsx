@@ -366,7 +366,6 @@ export function useClientes() {
       const hoje = new Date();
       const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
 
-      // Sai da revisão e marca o mês como "processado" (evita reentrar em revisão automaticamente)
       const { error: updateError } = await supabase
         .from('clientes_parcelados')
         .update({
@@ -384,27 +383,37 @@ export function useClientes() {
 
       return { clienteId, mesAtual };
     },
-    onSuccess: (result) => {
-      // Atualiza cache imediatamente para remover do painel de revisão
-      if (result?.clienteId) {
-        queryClient.setQueryData(['clientes'], (old: ClienteCalculado[] | undefined) => {
-          if (!old) return old;
-          return old.map((c) =>
-            c.id === result.clienteId
-              ? calcularDadosCliente({
-                  ...(c as unknown as Cliente),
-                  em_revisao: false,
-                  mes_referencia_revisao: result.mesAtual,
-                })
-              : c
-          );
-        });
-      }
+    onMutate: async ({ clienteId }) => {
+      await queryClient.cancelQueries({ queryKey: ['clientes'] });
+      const previousClientes = queryClient.getQueryData<ClienteCalculado[]>(['clientes']);
 
-      queryClient.invalidateQueries({ queryKey: ['clientes'] });
+      const hoje = new Date();
+      const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+      queryClient.setQueryData<ClienteCalculado[]>(['clientes'], (old) => {
+        if (!old) return old;
+        return old.map((c) =>
+          c.id === clienteId
+            ? calcularDadosCliente({
+                ...(c as unknown as Cliente),
+                em_revisao: false,
+                mes_referencia_revisao: mesAtual,
+                valor_pago_parcial: null,
+                observacao_revisao: null,
+              })
+            : c
+        );
+      });
+
+      return { previousClientes };
+    },
+    onSuccess: () => {
+      // Don't invalidate clientes - optimistic update is sufficient
       toast({ title: 'Cliente marcado como atrasado', variant: 'destructive' });
     },
-    onError: (error) => {
+    onError: (error, _vars, context) => {
+      if (context?.previousClientes) {
+        queryClient.setQueryData(['clientes'], context.previousClientes);
+      }
       toast({ title: 'Erro ao atualizar status', description: error.message, variant: 'destructive' });
     },
   });
