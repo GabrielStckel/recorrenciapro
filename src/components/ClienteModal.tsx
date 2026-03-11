@@ -187,11 +187,14 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
         return;
       }
 
+      // Calculate valor_total from valor_parcela * total_parcelas
+      const valorTotalCalculado = Math.round(valorParcelaParsed * totalParcelasParsed * 100) / 100;
+
       const baseData = {
         cliente_nome: formData.cliente_nome.trim(),
         whatsapp: formData.whatsapp.trim() || '',
         produto: formData.produto.trim(),
-        valor_total: valorParsed,
+        valor_total: valorTotalCalculado,
         total_parcelas: totalParcelasParsed,
         parcelas_pagas: parcelasPagasParsed,
         dia_vencimento: diaVencimentoParsed,
