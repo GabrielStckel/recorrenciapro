@@ -30,6 +30,24 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Fields to sync (excluding valor_total which is independent per user)
+    const syncFields = (source: any) => ({
+      cliente_nome: source.cliente_nome,
+      whatsapp: source.whatsapp,
+      produto: source.produto,
+      total_parcelas: source.total_parcelas,
+      parcelas_pagas: source.parcelas_pagas,
+      dia_vencimento: source.dia_vencimento,
+      data_inicio: source.data_inicio,
+      data_ultimo_pagamento: source.data_ultimo_pagamento,
+      status_cliente: source.status_cliente,
+      em_revisao: source.em_revisao,
+      mes_referencia_revisao: source.mes_referencia_revisao,
+      valor_pago_parcial: source.valor_pago_parcial,
+      observacao_revisao: source.observacao_revisao,
+      created_at: source.created_at,
+    })
+
     // Strategy 1: Use formal links from clientes_vinculados
     const { data: links } = await supabaseAdmin
       .from('clientes_vinculados')
@@ -44,32 +62,27 @@ Deno.serve(async (req) => {
         const sourceClientId = isOwner ? link.cliente_parceiro_id : link.cliente_id
         const myClientId = isOwner ? link.cliente_id : link.cliente_parceiro_id
 
-        const { data: sourceClient } = await supabaseAdmin
-          .from('clientes_parcelados')
-          .select('*')
-          .eq('id', sourceClientId)
-          .maybeSingle()
+        // Fetch both records to compare updated_at
+        const [sourceRes, myRes] = await Promise.all([
+          supabaseAdmin.from('clientes_parcelados').select('*').eq('id', sourceClientId).maybeSingle(),
+          supabaseAdmin.from('clientes_parcelados').select('*').eq('id', myClientId).maybeSingle(),
+        ])
 
-        if (!sourceClient) continue
+        const sourceClient = sourceRes.data
+        const myClient = myRes.data
+        if (!sourceClient || !myClient) continue
+
+        // Only sync if source is MORE RECENT than my record
+        const sourceUpdated = new Date(sourceClient.updated_at).getTime()
+        const myUpdated = new Date(myClient.updated_at).getTime()
+        if (sourceUpdated <= myUpdated) {
+          console.log(`Skipping ${myClientId}: my data is newer or equal`)
+          continue
+        }
 
         const { error: updateError } = await supabaseAdmin
           .from('clientes_parcelados')
-          .update({
-            cliente_nome: sourceClient.cliente_nome,
-            whatsapp: sourceClient.whatsapp,
-            produto: sourceClient.produto,
-            total_parcelas: sourceClient.total_parcelas,
-            parcelas_pagas: sourceClient.parcelas_pagas,
-            dia_vencimento: sourceClient.dia_vencimento,
-            data_inicio: sourceClient.data_inicio,
-            data_ultimo_pagamento: sourceClient.data_ultimo_pagamento,
-            status_cliente: sourceClient.status_cliente,
-            em_revisao: sourceClient.em_revisao,
-            mes_referencia_revisao: sourceClient.mes_referencia_revisao,
-            valor_pago_parcial: sourceClient.valor_pago_parcial,
-            observacao_revisao: sourceClient.observacao_revisao,
-            created_at: sourceClient.created_at,
-          })
+          .update(syncFields(sourceClient))
           .eq('id', myClientId)
 
         if (!updateError) syncCount++
@@ -77,7 +90,6 @@ Deno.serve(async (req) => {
     }
 
     // Strategy 2: Match by client name (for copied but unlinked clients)
-    // Get all my clients
     const { data: myClients } = await supabaseAdmin
       .from('clientes_parcelados')
       .select('*')
@@ -94,7 +106,6 @@ Deno.serve(async (req) => {
       (links || []).map((l: any) => l.user_id === user.id ? l.cliente_id : l.cliente_parceiro_id)
     )
 
-    // Find other user IDs that have clients with matching names
     const myClientNames = myClients
       .filter(c => !linkedMyIds.has(c.id))
       .map(c => c.cliente_nome)
@@ -124,29 +135,23 @@ Deno.serve(async (req) => {
       sourceByName.set(c.cliente_nome, c)
     }
 
-    // Update my unlinked clients that have a match
+    // Update my unlinked clients that have a match — only if source is newer
     for (const myClient of myClients) {
       if (linkedMyIds.has(myClient.id)) continue
       const source = sourceByName.get(myClient.cliente_nome)
       if (!source) continue
 
+      // Only sync if source is MORE RECENT
+      const sourceUpdated = new Date(source.updated_at).getTime()
+      const myUpdated = new Date(myClient.updated_at).getTime()
+      if (sourceUpdated <= myUpdated) {
+        console.log(`Skipping name-match ${myClient.id}: my data is newer or equal`)
+        continue
+      }
+
       const { error: updateError } = await supabaseAdmin
         .from('clientes_parcelados')
-        .update({
-          whatsapp: source.whatsapp,
-          produto: source.produto,
-          total_parcelas: source.total_parcelas,
-          parcelas_pagas: source.parcelas_pagas,
-          dia_vencimento: source.dia_vencimento,
-          data_inicio: source.data_inicio,
-          data_ultimo_pagamento: source.data_ultimo_pagamento,
-          status_cliente: source.status_cliente,
-          em_revisao: source.em_revisao,
-          mes_referencia_revisao: source.mes_referencia_revisao,
-          valor_pago_parcial: source.valor_pago_parcial,
-          observacao_revisao: source.observacao_revisao,
-          created_at: source.created_at,
-        })
+        .update(syncFields(source))
         .eq('id', myClient.id)
 
       if (!updateError) syncCount++
