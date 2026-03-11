@@ -428,6 +428,12 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
             </div>
           </div>
 
+          {valorTotalCalc > 0 && (
+            <div className="text-sm text-muted-foreground px-1">
+              Valor total: <span className="font-semibold text-foreground">R$ {valorTotalCalc.toFixed(2).replace('.', ',')}</span>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="dia_vencimento">Dia Vencimento (1-31) *</Label>
