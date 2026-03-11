@@ -6,9 +6,11 @@ import { ClientesTable } from '@/components/ClientesTable';
 import { ClienteModal } from '@/components/ClienteModal';
 import { HistoricoModal } from '@/components/HistoricoModal';
 import { MovimentosModal } from '@/components/MovimentosModal';
+import { CobrancasFuturasSection } from '@/components/CobrancasFuturasSection';
 import { Button } from '@/components/ui/button';
 import { Plus, Loader2, Eye, EyeOff } from 'lucide-react';
 import { ClienteCalculado } from '@/types/cliente';
+import { CobrancaFutura } from '@/hooks/useCobrancasFuturas';
 
 export default function Clientes() {
   const { clientes, isLoading } = useClientes();
@@ -17,9 +19,11 @@ export default function Clientes() {
   const [historicoOpen, setHistoricoOpen] = useState(false);
   const [movimentosOpen, setMovimentosOpen] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState<ClienteCalculado | null>(null);
+  const [prefilledFromCobranca, setPrefilledFromCobranca] = useState<Partial<CobrancaFutura> | null>(null);
 
   const handleEdit = (cliente: ClienteCalculado) => {
     setSelectedCliente(cliente);
+    setPrefilledFromCobranca(null);
     setModalOpen(true);
   };
 
@@ -31,6 +35,12 @@ export default function Clientes() {
   const handleMovimentos = (cliente: ClienteCalculado) => {
     setSelectedCliente(cliente);
     setMovimentosOpen(true);
+  };
+
+  const handleConvertCobranca = (cobranca: CobrancaFutura) => {
+    setSelectedCliente(null);
+    setPrefilledFromCobranca(cobranca);
+    setModalOpen(true);
   };
 
   if (isLoading) {
@@ -52,11 +62,12 @@ export default function Clientes() {
             >
               {hideValues ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
             </Button>
-            <Button onClick={() => { setSelectedCliente(null); setModalOpen(true); }}><Plus className="w-4 h-4 mr-2" />Novo Cliente</Button>
+            <Button onClick={() => { setSelectedCliente(null); setPrefilledFromCobranca(null); setModalOpen(true); }}><Plus className="w-4 h-4 mr-2" />Novo Cliente</Button>
           </div>
         </div>
+        <CobrancasFuturasSection onConvertToCliente={handleConvertCobranca} />
         <ClientesTable clientes={clientes} onEdit={handleEdit} onHistory={handleHistory} onMovimentos={handleMovimentos} hideValues={hideValues} />
-        <ClienteModal open={modalOpen} onClose={() => setModalOpen(false)} cliente={selectedCliente} />
+        <ClienteModal open={modalOpen} onClose={() => { setModalOpen(false); setPrefilledFromCobranca(null); }} cliente={selectedCliente} prefilledCobranca={prefilledFromCobranca} />
         <HistoricoModal open={historicoOpen} onClose={() => setHistoricoOpen(false)} cliente={selectedCliente} />
         <MovimentosModal open={movimentosOpen} onOpenChange={setMovimentosOpen} cliente={selectedCliente} />
       </div>

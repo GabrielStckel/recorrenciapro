@@ -125,6 +125,51 @@ export type Database = {
           },
         ]
       }
+      cobrancas_futuras: {
+        Row: {
+          cliente_nome: string
+          created_at: string
+          data_envio_link: string
+          id: string
+          link_pagamento: string | null
+          observacao: string | null
+          produto: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          valor_a_vista: number
+          whatsapp: string | null
+        }
+        Insert: {
+          cliente_nome: string
+          created_at?: string
+          data_envio_link: string
+          id?: string
+          link_pagamento?: string | null
+          observacao?: string | null
+          produto?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          valor_a_vista?: number
+          whatsapp?: string | null
+        }
+        Update: {
+          cliente_nome?: string
+          created_at?: string
+          data_envio_link?: string
+          id?: string
+          link_pagamento?: string | null
+          observacao?: string | null
+          produto?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          valor_a_vista?: number
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
       historico_pagamentos: {
         Row: {
           cliente_id: string

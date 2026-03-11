@@ -72,9 +72,10 @@ interface ClienteModalProps {
   open: boolean;
   onClose: () => void;
   cliente?: ClienteCalculado | null;
+  prefilledCobranca?: { cliente_nome?: string; whatsapp?: string | null; produto?: string | null } | null;
 }
 
-export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
+export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: ClienteModalProps) {
   const { addCliente, updateCliente } = useClientes();
   const { produtos, addProduto } = useProdutos();
   const { toast } = useToast();
@@ -113,9 +114,9 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
       setComSocio(false);
     } else {
       setFormData({
-        cliente_nome: '',
-        whatsapp: '',
-        produto: '',
+        cliente_nome: prefilledCobranca?.cliente_nome || '',
+        whatsapp: prefilledCobranca?.whatsapp || '',
+        produto: prefilledCobranca?.produto || '',
         valor_total: '',
         total_parcelas: '',
         parcelas_pagas: '0',
@@ -128,7 +129,7 @@ export function ClienteModal({ open, onClose, cliente }: ClienteModalProps) {
       setPercentualUser('50');
       setPercentualParceiro('50');
     }
-  }, [cliente, open]);
+  }, [cliente, open, prefilledCobranca]);
 
   const handlePercentualUserChange = (val: string) => {
     setPercentualUser(val);
