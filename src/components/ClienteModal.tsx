@@ -103,7 +103,7 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
     cliente_nome: '',
     whatsapp: '',
     produto: '',
-    valor_total: '',
+    valor_parcela: '',
     total_parcelas: '',
     parcelas_pagas: '0',
     dia_vencimento: '10',
@@ -113,11 +113,13 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
 
   useEffect(() => {
     if (cliente) {
+      // Calculate valor_parcela from valor_total / total_parcelas
+      const valorParcela = cliente.total_parcelas > 0 ? cliente.valor_total / cliente.total_parcelas : cliente.valor_total;
       setFormData({
         cliente_nome: cliente.cliente_nome,
         whatsapp: cliente.whatsapp || '',
         produto: cliente.produto,
-        valor_total: formatCurrencyInput(Math.round(cliente.valor_total * 100)),
+        valor_parcela: formatCurrencyInput(Math.round(valorParcela * 100)),
         total_parcelas: cliente.total_parcelas.toString(),
         parcelas_pagas: cliente.parcelas_pagas.toString(),
         dia_vencimento: cliente.dia_vencimento.toString(),
@@ -129,11 +131,13 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
       const pVT = prefilledCobranca?.valor_total;
       const pTP = prefilledCobranca?.total_parcelas;
       const pDV = prefilledCobranca?.dia_vencimento;
+      // If prefilled has valor_total, convert to valor_parcela
+      const valorParcela = (pVT && pTP && pTP > 0) ? pVT / pTP : pVT;
       setFormData({
         cliente_nome: prefilledCobranca?.cliente_nome || '',
         whatsapp: prefilledCobranca?.whatsapp || '',
         produto: prefilledCobranca?.produto || '',
-        valor_total: pVT ? formatCurrencyInput(Math.round(pVT * 100)) : '',
+        valor_parcela: valorParcela ? formatCurrencyInput(Math.round(valorParcela * 100)) : '',
         total_parcelas: pTP ? pTP.toString() : '',
         parcelas_pagas: '0',
         dia_vencimento: pDV ? pDV.toString() : '10',
@@ -149,26 +153,18 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
 
   const handlePercentualUserChange = (val: string) => {
     setPercentualUser(val);
-    const num = parseFloat(val);
-    if (!isNaN(num) && num >= 0 && num <= 100) {
-      setPercentualParceiro((100 - num).toString());
-    }
   };
 
   const handlePercentualParceiroChange = (val: string) => {
     setPercentualParceiro(val);
-    const num = parseFloat(val);
-    if (!isNaN(num) && num >= 0 && num <= 100) {
-      setPercentualUser((100 - num).toString());
-    }
   };
 
   const handleSubmit = async () => {
     try {
-      const valorParsed = parseBrazilianCurrency(formData.valor_total);
+      const valorParcelaParsed = parseBrazilianCurrency(formData.valor_parcela);
       
-      if (isNaN(valorParsed)) {
-        toast({ title: 'Erro de validação', description: 'Digite um valor válido, ex: 1636,20', variant: 'destructive' });
+      if (isNaN(valorParcelaParsed) || valorParcelaParsed <= 0) {
+        toast({ title: 'Erro de validação', description: 'Digite um valor de parcela válido, ex: 136,35', variant: 'destructive' });
         return;
       }
 
@@ -191,11 +187,14 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
         return;
       }
 
+      // Calculate valor_total from valor_parcela * total_parcelas
+      const valorTotalCalculado = Math.round(valorParcelaParsed * totalParcelasParsed * 100) / 100;
+
       const baseData = {
         cliente_nome: formData.cliente_nome.trim(),
         whatsapp: formData.whatsapp.trim() || '',
         produto: formData.produto.trim(),
-        valor_total: valorParsed,
+        valor_total: valorTotalCalculado,
         total_parcelas: totalParcelasParsed,
         parcelas_pagas: parcelasPagasParsed,
         dia_vencimento: diaVencimentoParsed,
@@ -217,7 +216,10 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
         observacao_revisao: cliente ? (datesChanged ? null : cliente.observacao_revisao) : null,
       };
 
-      const result = clienteSchema.safeParse(data);
+      const result = clienteSchema.safeParse({
+        ...data,
+        valor_total: valorTotalCalculado,
+      });
       if (!result.success) {
         toast({ title: 'Erro de validação', description: result.error.errors[0].message, variant: 'destructive' });
         return;
@@ -235,10 +237,15 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
         }
         const pctUser = parseFloat(percentualUser);
         const pctParceiro = parseFloat(percentualParceiro);
-        if (isNaN(pctUser) || isNaN(pctParceiro) || pctUser <= 0 || pctParceiro <= 0 || Math.abs(pctUser + pctParceiro - 100) > 0.01) {
-          toast({ title: 'Erro', description: 'Os percentuais devem somar 100%', variant: 'destructive' });
+        if (isNaN(pctUser) || isNaN(pctParceiro) || pctUser <= 0 || pctParceiro <= 0) {
+          toast({ title: 'Erro', description: 'Os percentuais devem ser maiores que zero', variant: 'destructive' });
           return;
         }
+
+        // Calculate partner's valor_total based on proportional logic
+        // User receives valorTotalCalculado at pctUser%, partner receives proportionally at pctParceiro%
+        const valorParcelaParceiro = Math.round(valorParcelaParsed * (pctParceiro / pctUser) * 100) / 100;
+        const valorTotalParceiro = Math.round(valorParcelaParceiro * totalParcelasParsed * 100) / 100;
 
         setIsSavingWithPartner(true);
         try {
@@ -261,6 +268,7 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
               email_socio: emailSocio.trim(),
               percentual_user: pctUser,
               percentual_parceiro: pctParceiro,
+              valor_total_parceiro: valorTotalParceiro,
             },
           });
 
@@ -286,10 +294,16 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
 
   const isLoading = addCliente.isPending || updateCliente.isPending || isSavingWithPartner;
 
-  const valorParsed = parseBrazilianCurrency(formData.valor_total);
+  const valorParcelaCalc = parseBrazilianCurrency(formData.valor_parcela);
+  const totalParcelasCalc = parseInt(formData.total_parcelas, 10);
+  const valorTotalCalc = !isNaN(valorParcelaCalc) && !isNaN(totalParcelasCalc) && totalParcelasCalc > 0
+    ? Math.round(valorParcelaCalc * totalParcelasCalc * 100) / 100 : 0;
   const pctUser = parseFloat(percentualUser);
   const pctParceiro = parseFloat(percentualParceiro);
-  const showPreview = comSocio && !isNaN(valorParsed) && valorParsed > 0 && !isNaN(pctUser) && !isNaN(pctParceiro);
+  const valorParcelaParceiro = !isNaN(valorParcelaCalc) && valorParcelaCalc > 0 && !isNaN(pctUser) && pctUser > 0 && !isNaN(pctParceiro) && pctParceiro > 0
+    ? Math.round(valorParcelaCalc * (pctParceiro / pctUser) * 100) / 100 : 0;
+  const valorTotalParceiro = valorParcelaParceiro * (totalParcelasCalc || 0);
+  const showPreview = comSocio && valorParcelaCalc > 0 && pctUser > 0 && pctParceiro > 0;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -386,15 +400,15 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
 
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="valor_total">Valor Total (R$) *</Label>
+              <Label htmlFor="valor_parcela">Valor da Parcela (R$) *</Label>
               <Input
-                id="valor_total"
+                id="valor_parcela"
                 type="text"
                 inputMode="numeric"
-                value={formData.valor_total}
+                value={formData.valor_parcela}
                 onChange={(e) => {
                   const cents = toCents(e.target.value);
-                  setFormData({ ...formData, valor_total: formatCurrencyInput(cents) });
+                  setFormData({ ...formData, valor_parcela: formatCurrencyInput(cents) });
                 }}
                 placeholder="0,00"
               />
@@ -413,6 +427,12 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
               />
             </div>
           </div>
+
+          {valorTotalCalc > 0 && (
+            <div className="text-sm text-muted-foreground px-1">
+              Valor total: <span className="font-semibold text-foreground">R$ {valorTotalCalc.toFixed(2).replace('.', ',')}</span>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
@@ -524,8 +544,9 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
                   </div>
                   {showPreview && (
                     <div className="text-xs text-muted-foreground space-y-0.5 pt-1">
-                      <p>Meu valor: <span className="font-medium text-foreground">R$ {(valorParsed * pctUser / 100).toFixed(2).replace('.', ',')}</span></p>
-                      <p>Sócio: <span className="font-medium text-foreground">R$ {(valorParsed * pctParceiro / 100).toFixed(2).replace('.', ',')}</span></p>
+                      <p>Meu valor total: <span className="font-medium text-foreground">R$ {valorTotalCalc.toFixed(2).replace('.', ',')}</span> ({pctUser}%)</p>
+                      <p>Parcela do sócio: <span className="font-medium text-foreground">R$ {valorParcelaParceiro.toFixed(2).replace('.', ',')}</span></p>
+                      <p>Valor total do sócio: <span className="font-medium text-foreground">R$ {valorTotalParceiro.toFixed(2).replace('.', ',')}</span> ({pctParceiro}%)</p>
                     </div>
                   )}
                 </div>

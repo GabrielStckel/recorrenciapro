@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json()
-    const { cliente_data, email_socio, percentual_user, percentual_parceiro } = body
+    const { cliente_data, email_socio, percentual_user, percentual_parceiro, valor_total_parceiro } = body
 
     if (!cliente_data || !email_socio || !percentual_user || !percentual_parceiro) {
       return new Response(JSON.stringify({ error: 'Dados incompletos' }), {
@@ -60,9 +60,10 @@ Deno.serve(async (req) => {
       })
     }
 
-    const valorTotal = cliente_data.valor_total
-    const valorUser = Math.round(valorTotal * (percentual_user / 100) * 100) / 100
-    const valorParceiro = Math.round(valorTotal * (percentual_parceiro / 100) * 100) / 100
+    // User's valor_total comes directly from cliente_data (already calculated on frontend)
+    const valorUser = cliente_data.valor_total
+    // Partner's valor_total comes from frontend calculation or fallback
+    const valorParceiro = valor_total_parceiro || Math.round(cliente_data.valor_total * (percentual_parceiro / percentual_user) * 100) / 100
 
     // Create client for current user
     const sharedCreatedAt = new Date().toISOString()
