@@ -312,9 +312,16 @@ export function useClientes() {
         data_ultimo_pagamento: novaDataUltimoPagamento,
       });
       
-      return { novasParcelas };
+      return { novasParcelas, clienteAtualizado: calcularDadosCliente(clienteAtualizado as Cliente) };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      // Optimistic cache update to prevent flickering
+      if (result?.clienteAtualizado) {
+        queryClient.setQueryData(['clientes'], (old: ClienteCalculado[] | undefined) => {
+          if (!old) return old;
+          return old.map((c) => (c.id === result.clienteAtualizado.id ? result.clienteAtualizado : c));
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
       queryClient.invalidateQueries({ queryKey: ['historico'] });
       toast({ title: 'Pagamento confirmado!', description: 'Parcela marcada como paga.' });
