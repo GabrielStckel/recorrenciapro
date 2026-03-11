@@ -263,10 +263,8 @@ export function useClientes() {
       const novasParcelas = Math.min(cliente.total_parcelas, cliente.parcelas_pagas + 1);
       const now = new Date();
       const novaDataUltimoPagamento = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      // Keep mes_referencia_revisao as current month to prevent auto-review re-entry
       const mesAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       
-      // Update client: increment parcela, clear review state but keep month reference
       const { data: clienteAtualizado, error: updateError } = await supabase
         .from('clientes_parcelados')
         .update({
@@ -314,19 +312,50 @@ export function useClientes() {
       
       return { novasParcelas, clienteAtualizado: calcularDadosCliente(clienteAtualizado as Cliente) };
     },
+    onMutate: async ({ clienteId }) => {
+      // Cancel any outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ['clientes'] });
+
+      const previousClientes = queryClient.getQueryData<ClienteCalculado[]>(['clientes']);
+
+      // Optimistically remove from review immediately
+      const now = new Date();
+      const mesAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      queryClient.setQueryData<ClienteCalculado[]>(['clientes'], (old) => {
+        if (!old) return old;
+        return old.map((c) => {
+          if (c.id !== clienteId) return c;
+          return calcularDadosCliente({
+            ...(c as unknown as Cliente),
+            parcelas_pagas: Math.min(c.total_parcelas, c.parcelas_pagas + 1),
+            data_ultimo_pagamento: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
+            em_revisao: false,
+            mes_referencia_revisao: mesAtual,
+            valor_pago_parcial: null,
+            observacao_revisao: null,
+          });
+        });
+      });
+
+      return { previousClientes };
+    },
     onSuccess: (result) => {
-      // Optimistic cache update to prevent flickering
+      // Update cache with server-confirmed data
       if (result?.clienteAtualizado) {
-        queryClient.setQueryData(['clientes'], (old: ClienteCalculado[] | undefined) => {
+        queryClient.setQueryData<ClienteCalculado[]>(['clientes'], (old) => {
           if (!old) return old;
           return old.map((c) => (c.id === result.clienteAtualizado.id ? result.clienteAtualizado : c));
         });
       }
-      queryClient.invalidateQueries({ queryKey: ['clientes'] });
+      // Only invalidate historico, NOT clientes (we already have fresh data)
       queryClient.invalidateQueries({ queryKey: ['historico'] });
       toast({ title: 'Pagamento confirmado!', description: 'Parcela marcada como paga.' });
     },
-    onError: (error) => {
+    onError: (error, _vars, context) => {
+      // Rollback on error
+      if (context?.previousClientes) {
+        queryClient.setQueryData(['clientes'], context.previousClientes);
+      }
       toast({ title: 'Erro ao confirmar pagamento', description: error.message, variant: 'destructive' });
     },
   });
