@@ -216,7 +216,10 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
         observacao_revisao: cliente ? (datesChanged ? null : cliente.observacao_revisao) : null,
       };
 
-      const result = clienteSchema.safeParse(data);
+      const result = clienteSchema.safeParse({
+        ...data,
+        valor_total: valorTotalCalculado,
+      });
       if (!result.success) {
         toast({ title: 'Erro de validação', description: result.error.errors[0].message, variant: 'destructive' });
         return;
