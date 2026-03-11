@@ -237,10 +237,15 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
         }
         const pctUser = parseFloat(percentualUser);
         const pctParceiro = parseFloat(percentualParceiro);
-        if (isNaN(pctUser) || isNaN(pctParceiro) || pctUser <= 0 || pctParceiro <= 0 || Math.abs(pctUser + pctParceiro - 100) > 0.01) {
-          toast({ title: 'Erro', description: 'Os percentuais devem somar 100%', variant: 'destructive' });
+        if (isNaN(pctUser) || isNaN(pctParceiro) || pctUser <= 0 || pctParceiro <= 0) {
+          toast({ title: 'Erro', description: 'Os percentuais devem ser maiores que zero', variant: 'destructive' });
           return;
         }
+
+        // Calculate partner's valor_total based on proportional logic
+        // User receives valorTotalCalculado at pctUser%, partner receives proportionally at pctParceiro%
+        const valorParcelaParceiro = Math.round(valorParcelaParsed * (pctParceiro / pctUser) * 100) / 100;
+        const valorTotalParceiro = Math.round(valorParcelaParceiro * totalParcelasParsed * 100) / 100;
 
         setIsSavingWithPartner(true);
         try {
