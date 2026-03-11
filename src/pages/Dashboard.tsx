@@ -261,7 +261,7 @@ export default function Dashboard() {
             isPrivate={hideClientNames}
             onPrivacyToggle={() => setHideClientNames(!hideClientNames)}
           />
-          <KPICard title="Valor em Atraso" value={formatCurrency(valorEmAtraso)} icon={Clock} variant={valorEmAtraso > 0 ? 'warning' : 'default'} />
+          <KPICard title="Valor em Atraso" value={formatCurrency(valorEmAtraso)} icon={Clock} variant={valorEmAtraso > 0 ? 'destructive' : 'default'} />
         </div>
 
         {/* Review Section */}
