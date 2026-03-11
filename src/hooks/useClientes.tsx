@@ -263,19 +263,23 @@ export function useClientes() {
       const novasParcelas = Math.min(cliente.total_parcelas, cliente.parcelas_pagas + 1);
       const now = new Date();
       const novaDataUltimoPagamento = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      // Keep mes_referencia_revisao as current month to prevent auto-review re-entry
+      const mesAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       
-      // Update client: increment parcela, clear review state
-      const { error: updateError } = await supabase
+      // Update client: increment parcela, clear review state but keep month reference
+      const { data: clienteAtualizado, error: updateError } = await supabase
         .from('clientes_parcelados')
         .update({
           parcelas_pagas: novasParcelas,
           data_ultimo_pagamento: novaDataUltimoPagamento,
           em_revisao: false,
-          mes_referencia_revisao: null,
+          mes_referencia_revisao: mesAtual,
           valor_pago_parcial: null,
           observacao_revisao: null,
         })
-        .eq('id', clienteId);
+        .eq('id', clienteId)
+        .select('*')
+        .single();
       
       if (updateError) throw updateError;
       
