@@ -99,7 +99,7 @@ export default function Dashboard() {
       // Se já está em revisão, não mexe
       if (cliente.em_revisao) return;
 
-      // Se já foi revisado/processado neste mês (marcado como não pagou), não mexe
+      // Se já foi revisado/processado neste mês (marcado como não pagou OR pagamento confirmado), não mexe
       if (cliente.mes_referencia_revisao === mesAtual) return;
 
       // Se já enviamos mutação para este cliente nesta sessão, não envia de novo
