@@ -161,10 +161,10 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
 
   const handleSubmit = async () => {
     try {
-      const valorParsed = parseBrazilianCurrency(formData.valor_total);
+      const valorParcelaParsed = parseBrazilianCurrency(formData.valor_parcela);
       
-      if (isNaN(valorParsed)) {
-        toast({ title: 'Erro de validação', description: 'Digite um valor válido, ex: 1636,20', variant: 'destructive' });
+      if (isNaN(valorParcelaParsed) || valorParcelaParsed <= 0) {
+        toast({ title: 'Erro de validação', description: 'Digite um valor de parcela válido, ex: 136,35', variant: 'destructive' });
         return;
       }
 
