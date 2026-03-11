@@ -268,6 +268,7 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
               email_socio: emailSocio.trim(),
               percentual_user: pctUser,
               percentual_parceiro: pctParceiro,
+              valor_total_parceiro: valorTotalParceiro,
             },
           });
 
