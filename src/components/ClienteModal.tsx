@@ -538,8 +538,9 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
                   </div>
                   {showPreview && (
                     <div className="text-xs text-muted-foreground space-y-0.5 pt-1">
-                      <p>Meu valor: <span className="font-medium text-foreground">R$ {(valorParsed * pctUser / 100).toFixed(2).replace('.', ',')}</span></p>
-                      <p>Sócio: <span className="font-medium text-foreground">R$ {(valorParsed * pctParceiro / 100).toFixed(2).replace('.', ',')}</span></p>
+                      <p>Meu valor total: <span className="font-medium text-foreground">R$ {valorTotalCalc.toFixed(2).replace('.', ',')}</span> ({pctUser}%)</p>
+                      <p>Parcela do sócio: <span className="font-medium text-foreground">R$ {valorParcelaParceiro.toFixed(2).replace('.', ',')}</span></p>
+                      <p>Valor total do sócio: <span className="font-medium text-foreground">R$ {valorTotalParceiro.toFixed(2).replace('.', ',')}</span> ({pctParceiro}%)</p>
                     </div>
                   )}
                 </div>
