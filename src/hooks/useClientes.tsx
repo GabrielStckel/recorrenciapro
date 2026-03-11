@@ -433,10 +433,24 @@ export function useClientes() {
 
       // Sync to partner
       sincronizarParceiro(clienteId, 'entrou_revisao', { mes_referencia: mesReferencia });
+      return { clienteId, mesReferencia };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clientes'] });
+    onMutate: async ({ clienteId, mesReferencia }) => {
+      // Optimistically set em_revisao without triggering refetch
+      queryClient.setQueryData<ClienteCalculado[]>(['clientes'], (old) => {
+        if (!old) return old;
+        return old.map((c) =>
+          c.id === clienteId
+            ? calcularDadosCliente({
+                ...(c as unknown as Cliente),
+                em_revisao: true,
+                mes_referencia_revisao: mesReferencia,
+              })
+            : c
+        );
+      });
     },
+    // Don't invalidate on success - optimistic update is enough
   });
 
   // Mutation to register partial payment
