@@ -214,7 +214,8 @@ export function expandirParcelasAtrasadas(clientes: ClienteCalculado[]): Parcela
   };
 
   for (const cliente of clientes) {
-    if (cliente.status !== 'Atrasado' || !cliente.primeira_data_vencimento) continue;
+    // Include clients with overdue parcels regardless of review status
+    if (cliente.parcelas_atrasadas <= 0 || !cliente.primeira_data_vencimento || cliente.status_cliente !== 'ATIVO') continue;
 
     for (let i = 0; i < cliente.parcelas_atrasadas; i++) {
       const numeroParcela = cliente.parcelas_pagas + 1 + i;

@@ -122,10 +122,12 @@ export default function Dashboard() {
 
   const totalRecebido = clientesFiltrados.reduce((acc, c) => acc + c.valor_pago, 0);
   const totalAReceber = clientesFiltrados.reduce((acc, c) => acc + c.valor_a_receber, 0);
+  // Include ALL clients with overdue parcels (even those in review)
+  const clientesComAtraso = clientesFiltrados.filter((c) => c.parcelas_atrasadas > 0 && c.status_cliente === 'ATIVO');
   const clientesAtrasados = clientesFiltrados.filter((c) => c.status === 'Atrasado');
   const clientesEmRevisao = clientesFiltrados.filter((c) => c.em_revisao && c.status_cliente === 'ATIVO');
-  const totalParcelasAtrasadas = clientesAtrasados.reduce((acc, c) => acc + c.parcelas_atrasadas, 0);
-  const valorEmAtraso = clientesAtrasados.reduce((acc, c) => acc + c.valor_parcela * c.parcelas_atrasadas, 0);
+  const totalParcelasAtrasadas = clientesComAtraso.reduce((acc, c) => acc + c.parcelas_atrasadas, 0);
+  const valorEmAtraso = clientesComAtraso.reduce((acc, c) => acc + c.valor_parcela * c.parcelas_atrasadas, 0);
 
   // Helpers para cálculos do mês
   const parseDateOnlyISO = (dateStr: string): Date => {
@@ -254,7 +256,7 @@ export default function Dashboard() {
           <KPICard 
             title="Parcelas Atrasadas" 
             value={totalParcelasAtrasadas.toString()} 
-            subtitle={`${clientesAtrasados.length} ${clientesAtrasados.length === 1 ? 'cliente' : 'clientes'}`}
+            subtitle={`${clientesComAtraso.length} ${clientesComAtraso.length === 1 ? 'cliente' : 'clientes'}`}
             icon={AlertTriangle} 
             variant={totalParcelasAtrasadas > 0 ? 'destructive' : 'default'}
             showPrivacyToggle={totalParcelasAtrasadas > 0}
