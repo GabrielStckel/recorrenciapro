@@ -48,6 +48,39 @@ Deno.serve(async (req) => {
       created_at: source.created_at,
     })
 
+    // Check if two records have different sync-relevant data
+    const hasDataChanged = (source: any, target: any): boolean => {
+      return (
+        source.cliente_nome !== target.cliente_nome ||
+        source.whatsapp !== target.whatsapp ||
+        source.produto !== target.produto ||
+        source.total_parcelas !== target.total_parcelas ||
+        source.parcelas_pagas !== target.parcelas_pagas ||
+        source.dia_vencimento !== target.dia_vencimento ||
+        source.data_inicio !== target.data_inicio ||
+        source.data_ultimo_pagamento !== target.data_ultimo_pagamento ||
+        source.status_cliente !== target.status_cliente ||
+        source.em_revisao !== target.em_revisao ||
+        source.mes_referencia_revisao !== target.mes_referencia_revisao
+      )
+    }
+
+    // Determine which record is the "source of truth"
+    // Priority: higher parcelas_pagas wins, then more recent updated_at
+    const shouldSync = (source: any, target: any): boolean => {
+      // If source has more parcelas_pagas, it's ahead
+      if (source.parcelas_pagas > target.parcelas_pagas) return true
+      // If target has more, don't overwrite
+      if (source.parcelas_pagas < target.parcelas_pagas) return false
+      // Same parcelas_pagas: use updated_at as tiebreaker
+      const sourceUpdated = new Date(source.updated_at).getTime()
+      const targetUpdated = new Date(target.updated_at).getTime()
+      if (sourceUpdated > targetUpdated) return true
+      // If timestamps equal but data differs, still sync
+      if (sourceUpdated === targetUpdated && hasDataChanged(source, target)) return true
+      return false
+    }
+
     // Strategy 1: Use formal links from clientes_vinculados
     const { data: links } = await supabaseAdmin
       .from('clientes_vinculados')
@@ -62,7 +95,7 @@ Deno.serve(async (req) => {
         const sourceClientId = isOwner ? link.cliente_parceiro_id : link.cliente_id
         const myClientId = isOwner ? link.cliente_id : link.cliente_parceiro_id
 
-        // Fetch both records to compare updated_at
+        // Fetch both records to compare
         const [sourceRes, myRes] = await Promise.all([
           supabaseAdmin.from('clientes_parcelados').select('*').eq('id', sourceClientId).maybeSingle(),
           supabaseAdmin.from('clientes_parcelados').select('*').eq('id', myClientId).maybeSingle(),
@@ -72,11 +105,16 @@ Deno.serve(async (req) => {
         const myClient = myRes.data
         if (!sourceClient || !myClient) continue
 
-        // Only sync if source is MORE RECENT than my record
-        const sourceUpdated = new Date(sourceClient.updated_at).getTime()
-        const myUpdated = new Date(myClient.updated_at).getTime()
-        if (sourceUpdated <= myUpdated) {
-          console.log(`Skipping ${myClientId}: my data is newer or equal`)
+        // Only sync if source has newer/better data
+        if (!shouldSync(sourceClient, myClient)) {
+          // Try reverse: maybe MY data should go to the source
+          if (shouldSync(myClient, sourceClient)) {
+            const { error: updateError } = await supabaseAdmin
+              .from('clientes_parcelados')
+              .update(syncFields(myClient))
+              .eq('id', sourceClientId)
+            if (!updateError) syncCount++
+          }
           continue
         }
 
@@ -135,19 +173,14 @@ Deno.serve(async (req) => {
       sourceByName.set(c.cliente_nome, c)
     }
 
-    // Update my unlinked clients that have a match — only if source is newer
+    // Update my unlinked clients that have a match
     for (const myClient of myClients) {
       if (linkedMyIds.has(myClient.id)) continue
       const source = sourceByName.get(myClient.cliente_nome)
       if (!source) continue
 
-      // Only sync if source is MORE RECENT
-      const sourceUpdated = new Date(source.updated_at).getTime()
-      const myUpdated = new Date(myClient.updated_at).getTime()
-      if (sourceUpdated <= myUpdated) {
-        console.log(`Skipping name-match ${myClient.id}: my data is newer or equal`)
-        continue
-      }
+      // Only sync if source has better data
+      if (!shouldSync(source, myClient)) continue
 
       const { error: updateError } = await supabaseAdmin
         .from('clientes_parcelados')
