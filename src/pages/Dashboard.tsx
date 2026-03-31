@@ -256,7 +256,7 @@ export default function Dashboard() {
           <KPICard 
             title="Parcelas Atrasadas" 
             value={totalParcelasAtrasadas.toString()} 
-            subtitle={`${clientesAtrasados.length} ${clientesAtrasados.length === 1 ? 'cliente' : 'clientes'}`}
+            subtitle={`${clientesComAtraso.length} ${clientesComAtraso.length === 1 ? 'cliente' : 'clientes'}`}
             icon={AlertTriangle} 
             variant={totalParcelasAtrasadas > 0 ? 'destructive' : 'default'}
             showPrivacyToggle={totalParcelasAtrasadas > 0}
