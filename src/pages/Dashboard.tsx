@@ -76,11 +76,14 @@ export default function Dashboard() {
 
   // Track which clients we've already sent to review (to avoid repeated mutations)
   const clientesRevisadosRef = useRef<Set<string>>(new Set());
-  // Stable reference to entrarEmRevisao.mutate to avoid re-running effect
+  const clientesLimposRef = useRef<Set<string>>(new Set());
+  // Stable references to avoid re-running effect
   const entrarEmRevisaoMutate = useRef(entrarEmRevisao.mutate);
   entrarEmRevisaoMutate.current = entrarEmRevisao.mutate;
+  const sairDeRevisaoMutate = useRef(sairDeRevisao.mutate);
+  sairDeRevisaoMutate.current = sairDeRevisao.mutate;
 
-  // Auto-enter review state for clients that need it (run only once per client)
+  // Auto-enter / auto-exit review state for clients (run only once per client per session)
   useEffect(() => {
     if (clientes.length === 0) return;
 
@@ -96,29 +99,35 @@ export default function Dashboard() {
       // Only ATIVO clients with pending parcels
       if (cliente.status_cliente !== 'ATIVO' || cliente.parcelas_pendentes === 0) return;
 
-      // Se já está em revisão, não mexe
-      if (cliente.em_revisao) return;
-
-      // Se já foi revisado/processado neste mês (marcado como não pagou OR pagamento confirmado), não mexe
-      if (cliente.mes_referencia_revisao === mesAtual) return;
-
-      // Se já enviamos mutação para este cliente nesta sessão, não envia de novo
-      if (clientesRevisadosRef.current.has(cliente.id)) return;
-
-      // Só entra em revisão se o vencimento do mês atual já passou e ainda não pagou neste mês
-      if (hoje.getTime() < cliente.data_vencimento_mes_atual.getTime()) return;
-
       const ultimoPagamento = cliente.data_ultimo_pagamento ? parseDateOnlyISO(cliente.data_ultimo_pagamento) : null;
       const pagouNesteMes = ultimoPagamento
         ? ultimoPagamento.getMonth() === hoje.getMonth() && ultimoPagamento.getFullYear() === hoje.getFullYear()
         : false;
+      const vencimentoMesAtualPassou = hoje.getTime() >= cliente.data_vencimento_mes_atual.getTime();
+
+      // AUTO-EXIT: cliente está em_revisao mas matematicamente está em dia
+      // (não tem parcelas atrasadas E (vencimento do mês ainda não chegou OU já pagou neste mês))
+      if (cliente.em_revisao) {
+        const naoEstaRealmenteAtrasado = cliente.parcelas_atrasadas === 0;
+        const naoPrecisaRevisao = !vencimentoMesAtualPassou || pagouNesteMes;
+        if (naoEstaRealmenteAtrasado && naoPrecisaRevisao && !clientesLimposRef.current.has(cliente.id)) {
+          clientesLimposRef.current.add(cliente.id);
+          sairDeRevisaoMutate.current({ clienteId: cliente.id });
+        }
+        return;
+      }
+
+      // AUTO-ENTER review:
+      if (cliente.mes_referencia_revisao === mesAtual) return;
+      if (clientesRevisadosRef.current.has(cliente.id)) return;
+      if (!vencimentoMesAtualPassou) return;
 
       if (!pagouNesteMes) {
         clientesRevisadosRef.current.add(cliente.id);
         entrarEmRevisaoMutate.current({ clienteId: cliente.id, mesReferencia: mesAtual });
       }
     });
-  }, [clientes]); // Remove entrarEmRevisao from deps - use ref instead
+  }, [clientes]);
 
   const totalRecebido = clientesFiltrados.reduce((acc, c) => acc + c.valor_pago, 0);
   const totalAReceber = clientesFiltrados.reduce((acc, c) => acc + c.valor_a_receber, 0);
