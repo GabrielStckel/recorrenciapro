@@ -481,6 +481,47 @@ export function useClientes() {
     },
   });
 
+  // Auto-cleanup: sair silenciosamente do estado de revisão quando o cliente
+  // está matematicamente em dia (ex: usuário registrou pagamento retroativo)
+  const sairDeRevisao = useMutation({
+    mutationFn: async ({ clienteId }: { clienteId: string }) => {
+      const { error } = await supabase
+        .from('clientes_parcelados')
+        .update({
+          em_revisao: false,
+          mes_referencia_revisao: null,
+          valor_pago_parcial: null,
+          observacao_revisao: null,
+        })
+        .eq('id', clienteId);
+
+      if (error) throw error;
+
+      sincronizarParceiro(clienteId, 'cliente_editado', {
+        em_revisao: false,
+        mes_referencia_revisao: null,
+        valor_pago_parcial: null,
+        observacao_revisao: null,
+      });
+    },
+    onMutate: async ({ clienteId }) => {
+      queryClient.setQueryData<ClienteCalculado[]>(['clientes'], (old) => {
+        if (!old) return old;
+        return old.map((c) =>
+          c.id === clienteId
+            ? calcularDadosCliente({
+                ...(c as unknown as Cliente),
+                em_revisao: false,
+                mes_referencia_revisao: null,
+                valor_pago_parcial: null,
+                observacao_revisao: null,
+              })
+            : c
+        );
+      });
+    },
+  });
+
   return {
     clientes,
     isLoading,
@@ -492,6 +533,7 @@ export function useClientes() {
     confirmarPagamentoRevisao,
     marcarComoAtrasado,
     entrarEmRevisao,
+    sairDeRevisao,
     registrarPagamentoParcial,
   };
 }
