@@ -196,9 +196,6 @@ export function ExportarPrevisaoDialog({ open, onOpenChange, clientes }: Exporta
   };
 
   const exportarExcel = async () => {
-    const wb = XLSX.utils.book_new();
-
-  const exportarExcel = async () => {
     const wb = new ExcelJS.Workbook();
     wb.creator = 'Recorrência Pro';
     wb.created = new Date();
