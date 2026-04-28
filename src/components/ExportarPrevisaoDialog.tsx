@@ -686,7 +686,6 @@ export function ExportarPrevisaoDialog({ open, onOpenChange, clientes }: Exporta
       });
 
       // Linha de TOTAL única após toda a tabela (não repete por página)
-      // @ts-expect-error finalY is added by autotable
       const finalY = (doc as any).lastAutoTable?.finalY ?? y;
       let ty = finalY;
       if (ty + 10 > pageHeight - 12) { doc.addPage(); ty = 15; }
