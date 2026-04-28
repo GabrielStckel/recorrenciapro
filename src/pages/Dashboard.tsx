@@ -95,6 +95,9 @@ export default function Dashboard() {
       return new Date(ano, mes - 1, dia);
     };
 
+    // Normaliza "hoje" para meia-noite local (descarta horário)
+    const hojeMidnight = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+
     clientes.forEach((cliente) => {
       // Only ATIVO clients with pending parcels
       if (cliente.status_cliente !== 'ATIVO' || cliente.parcelas_pendentes === 0) return;
@@ -103,10 +106,11 @@ export default function Dashboard() {
       const pagouNesteMes = ultimoPagamento
         ? ultimoPagamento.getMonth() === hoje.getMonth() && ultimoPagamento.getFullYear() === hoje.getFullYear()
         : false;
-      const vencimentoMesAtualPassou = hoje.getTime() >= cliente.data_vencimento_mes_atual.getTime();
+      // Considera "passou" SOMENTE quando hoje é estritamente DEPOIS do dia de vencimento
+      // (ou seja, dia seguinte em diante). No próprio dia do vencimento ainda não está atrasado.
+      const vencimentoMesAtualPassou = hojeMidnight.getTime() > cliente.data_vencimento_mes_atual.getTime();
 
       // AUTO-EXIT: cliente está em_revisao mas matematicamente está em dia
-      // (não tem parcelas atrasadas E (vencimento do mês ainda não chegou OU já pagou neste mês))
       if (cliente.em_revisao) {
         const naoEstaRealmenteAtrasado = cliente.parcelas_atrasadas === 0;
         const naoPrecisaRevisao = !vencimentoMesAtualPassou || pagouNesteMes;
@@ -121,6 +125,10 @@ export default function Dashboard() {
       if (cliente.mes_referencia_revisao === mesAtual) return;
       if (clientesRevisadosRef.current.has(cliente.id)) return;
       if (!vencimentoMesAtualPassou) return;
+
+      // Não entrar em revisão se já está matematicamente em dia
+      // (parcelas_pagas cobre o que deveria estar pago)
+      if (cliente.parcelas_atrasadas === 0 && pagouNesteMes) return;
 
       if (!pagouNesteMes) {
         clientesRevisadosRef.current.add(cliente.id);
