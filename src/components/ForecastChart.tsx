@@ -296,7 +296,18 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
               </span>
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Export button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setExportOpen(true)}
+              className="h-9 gap-1.5"
+              title="Exportar relatório"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline text-xs">Exportar</span>
+            </Button>
             {/* Mensal/Diário toggle - LEFT */}
             <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
               <TabsList className="bg-secondary/50 p-1 h-9">
@@ -502,6 +513,11 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
           </div>
         )}
       </CardContent>
+      <ExportarPrevisaoDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        clientes={clientes}
+      />
     </Card>
   );
 }
