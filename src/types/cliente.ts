@@ -112,12 +112,12 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
     // independente do campo data_ultimo_pagamento.
     let parcelasQueDeveriamEstarPagas = 0;
 
-    if (hoje.getTime() >= primeiraDataVencimentoCalc.getTime()) {
+    if (hoje.getTime() > primeiraDataVencimentoCalc.getTime()) {
       const diffMeses =
         (hoje.getFullYear() * 12 + hoje.getMonth()) -
         (primeiraDataVencimentoCalc.getFullYear() * 12 + primeiraDataVencimentoCalc.getMonth());
 
-      const incluiMesAtual = hoje.getTime() >= dataVencimentoMesAtual.getTime();
+      const incluiMesAtual = hoje.getTime() > dataVencimentoMesAtual.getTime();
       parcelasQueDeveriamEstarPagas = diffMeses + (incluiMesAtual ? 1 : 0);
     }
 
