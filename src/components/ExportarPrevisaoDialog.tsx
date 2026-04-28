@@ -577,33 +577,37 @@ export function ExportarPrevisaoDialog({ open, onOpenChange, clientes }: Exporta
       doc.text(text, tx, yy + h / 2 + size / 4, { align });
     };
 
-    // ===== RESUMO (tabela estilo planilha) =====
-    if (incluirResumo) {
-      // Section banner
-      drawCell(margin, y, contentW, 7, 'RESUMO GERAL', {
-        bg: [30, 41, 59], fg: [255, 255, 255], bold: true, size: 10, align: 'left', border: false,
+    // Section banner helper (cinza claro com texto escuro - legível)
+    const drawSectionBanner = (label: string) => {
+      drawCell(margin, y, contentW, 7, label, {
+        bg: [226, 232, 240], fg: [15, 23, 42], bold: true, size: 10, align: 'left', border: false,
       });
       y += 7;
+    };
+
+    // ===== RESUMO (tabela estilo planilha) =====
+    if (incluirResumo) {
+      drawSectionBanner('  RESUMO GERAL');
 
       const colW1 = contentW * 0.55;
       const colW2 = contentW * 0.45;
       const rowH = 8;
 
-      // Header da tabela resumo
-      drawCell(margin, y, colW1, rowH, 'Indicador', { bg: [16, 185, 129], fg: [255, 255, 255], bold: true, size: 9 });
-      drawCell(margin + colW1, y, colW2, rowH, 'Valor', { bg: [16, 185, 129], fg: [255, 255, 255], bold: true, size: 9, align: 'right' });
+      // Header da tabela resumo (verde com texto branco — só nos headers de tabela)
+      drawCell(margin, y, colW1, rowH, 'Indicador', { bg: [16, 185, 129], fg: [255, 255, 255], bold: true, size: 9, align: 'center' });
+      drawCell(margin + colW1, y, colW2, rowH, 'Valor', { bg: [16, 185, 129], fg: [255, 255, 255], bold: true, size: 9, align: 'center' });
       y += rowH;
 
       const resumoLinhas = [
-        { label: 'Total Geral', value: formatBRL(totais.total), color: [16, 185, 129] as [number, number, number], bold: true },
+        { label: 'Total Geral', value: formatBRL(totais.total), color: [6, 95, 70] as [number, number, number], bg: [209, 250, 229] as [number, number, number] },
         { label: 'Quantidade de Parcelas', value: String(totais.qtd), color: [15, 23, 42] as [number, number, number] },
-        { label: 'Pago', value: formatBRL(totais.pago), color: [22, 163, 74] as [number, number, number], bg: [220, 252, 231] as [number, number, number] },
-        { label: 'A receber', value: formatBRL(totais.aReceber), color: [100, 116, 139] as [number, number, number], bg: [241, 245, 249] as [number, number, number] },
-        { label: 'Em revisão', value: formatBRL(totais.emRevisao), color: [202, 138, 4] as [number, number, number], bg: [254, 249, 195] as [number, number, number] },
-        { label: 'Atrasado', value: formatBRL(totais.atrasado), color: [220, 38, 38] as [number, number, number], bg: [254, 226, 226] as [number, number, number] },
+        { label: 'Pago', value: formatBRL(totais.pago), color: [21, 128, 61] as [number, number, number], bg: [220, 252, 231] as [number, number, number] },
+        { label: 'A receber', value: formatBRL(totais.aReceber), color: [51, 65, 85] as [number, number, number], bg: [241, 245, 249] as [number, number, number] },
+        { label: 'Em revisão', value: formatBRL(totais.emRevisao), color: [146, 64, 14] as [number, number, number], bg: [254, 243, 199] as [number, number, number] },
+        { label: 'Atrasado', value: formatBRL(totais.atrasado), color: [185, 28, 28] as [number, number, number], bg: [254, 226, 226] as [number, number, number] },
       ];
       resumoLinhas.forEach((r, i) => {
-        const bg = r.bg || (i % 2 === 0 ? [255, 255, 255] : [248, 250, 252]) as [number, number, number];
+        const bg = r.bg || ((i % 2 === 0 ? [255, 255, 255] : [248, 250, 252]) as [number, number, number]);
         drawCell(margin, y, colW1, rowH, r.label, { bg, bold: true, size: 9 });
         drawCell(margin + colW1, y, colW2, rowH, r.value, { bg, fg: r.color, bold: true, size: 10, align: 'right' });
         y += rowH;
@@ -615,11 +619,8 @@ export function ExportarPrevisaoDialog({ open, onOpenChange, clientes }: Exporta
     if (incluirGrafico) {
       const img = await captureChart();
       if (img) {
-        if (y + 78 > pageHeight - 15) { doc.addPage(); y = 15; }
-        drawCell(margin, y, contentW, 7, modo === 'mes' ? 'GRÁFICO • DISTRIBUIÇÃO POR DIA' : 'GRÁFICO • DISTRIBUIÇÃO POR MÊS', {
-          bg: [30, 41, 59], fg: [255, 255, 255], bold: true, size: 10, border: false,
-        });
-        y += 7;
+        if (y + 85 > pageHeight - 15) { doc.addPage(); y = 15; }
+        drawSectionBanner(modo === 'mes' ? '  GRÁFICO • DISTRIBUIÇÃO POR DIA' : '  GRÁFICO • DISTRIBUIÇÃO POR MÊS');
         // White panel
         doc.setFillColor(255, 255, 255);
         doc.setDrawColor(203, 213, 225);
@@ -633,11 +634,7 @@ export function ExportarPrevisaoDialog({ open, onOpenChange, clientes }: Exporta
     // ===== DETALHES (tabela com look de planilha) =====
     if (incluirDetalhes && parcelasData.length > 0) {
       if (y + 20 > pageHeight - 15) { doc.addPage(); y = 15; }
-
-      drawCell(margin, y, contentW, 7, 'DETALHES DAS PARCELAS', {
-        bg: [30, 41, 59], fg: [255, 255, 255], bold: true, size: 10, border: false,
-      });
-      y += 7;
+      drawSectionBanner('  DETALHES DAS PARCELAS');
 
       autoTable(doc, {
         startY: y,
@@ -646,7 +643,6 @@ export function ExportarPrevisaoDialog({ open, onOpenChange, clientes }: Exporta
         body: parcelasData.map(p => [
           p.data, p.cliente, p.produto, `${p.numeroParcela}/${p.totalParcelas}`, formatBRL(p.valor), p.status,
         ]),
-        foot: [['', '', '', 'TOTAL', formatBRL(totais.total), '']],
         theme: 'grid',
         styles: {
           fontSize: 8,
@@ -662,12 +658,6 @@ export function ExportarPrevisaoDialog({ open, onOpenChange, clientes }: Exporta
           fontSize: 9,
           halign: 'center',
         },
-        footStyles: {
-          fillColor: [30, 41, 59],
-          textColor: 255,
-          fontStyle: 'bold',
-          fontSize: 9,
-        },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         columnStyles: {
           0: { cellWidth: 22, halign: 'center' },
@@ -681,10 +671,10 @@ export function ExportarPrevisaoDialog({ open, onOpenChange, clientes }: Exporta
           if (data.section === 'body' && data.column.index === 5) {
             const status = data.cell.raw as string;
             const colorMap: Record<string, { fg: [number, number, number]; bg: [number, number, number] }> = {
-              'Pago': { fg: [22, 163, 74], bg: [220, 252, 231] },
-              'A receber': { fg: [100, 116, 139], bg: [241, 245, 249] },
-              'Atrasado': { fg: [220, 38, 38], bg: [254, 226, 226] },
-              'Em revisão': { fg: [202, 138, 4], bg: [254, 249, 195] },
+              'Pago': { fg: [21, 128, 61], bg: [220, 252, 231] },
+              'A receber': { fg: [51, 65, 85], bg: [241, 245, 249] },
+              'Atrasado': { fg: [185, 28, 28], bg: [254, 226, 226] },
+              'Em revisão': { fg: [146, 64, 14], bg: [254, 243, 199] },
             };
             const c = colorMap[status];
             if (c) {
@@ -692,11 +682,29 @@ export function ExportarPrevisaoDialog({ open, onOpenChange, clientes }: Exporta
               data.cell.styles.fillColor = c.bg;
             }
           }
-          if (data.section === 'foot' && data.column.index === 4) {
-            data.cell.styles.halign = 'right';
-          }
         },
       });
+
+      // Linha de TOTAL única após toda a tabela (não repete por página)
+      // @ts-expect-error finalY is added by autotable
+      const finalY = (doc as any).lastAutoTable?.finalY ?? y;
+      let ty = finalY;
+      if (ty + 10 > pageHeight - 12) { doc.addPage(); ty = 15; }
+      const totalRowH = 9;
+      // Label area (col 1-4): A4-D4
+      const labelW = 22 + (contentW - 22 - 38 - 14 - 26 - 24) + 38 + 14;
+      const valueW = 26;
+      const restW = 24;
+      drawCell(margin, ty, labelW, totalRowH, 'TOTAL GERAL', {
+        bg: [254, 243, 199], fg: [146, 64, 14], bold: true, size: 11, align: 'right',
+      });
+      drawCell(margin + labelW, ty, valueW, totalRowH, formatBRL(totais.total), {
+        bg: [254, 243, 199], fg: [146, 64, 14], bold: true, size: 11, align: 'right',
+      });
+      drawCell(margin + labelW + valueW, ty, restW, totalRowH, '', {
+        bg: [254, 243, 199], border: true,
+      });
+      y = ty + totalRowH;
     }
 
     // ===== Footer com números de página =====
