@@ -143,7 +143,7 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
 
     // "Não pagou" só é válido se o vencimento deste mês já passou
     // (se o vencimento foi alterado para o futuro, o flag anterior não se aplica)
-    const vencimentoMesAtualJaPassou = hoje.getTime() >= dataVencimentoMesAtual.getTime();
+    const vencimentoMesAtualJaPassou = hoje.getTime() > dataVencimentoMesAtual.getTime();
     const foiMarcadoNaoPagouValido = foiMarcadoNaoPagouEsteMes && vencimentoMesAtualJaPassou;
 
     // Cliente está atrasado se:
