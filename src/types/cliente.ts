@@ -177,7 +177,7 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
     // Se o cliente está marcado em_revisao mas matematicamente está em dia
     // (parcelas pagas cobrem o que deveria estar pago e o vencimento do mês atual
     // ainda não chegou OU já pagou neste mês), não deve aparecer como "Em revisão"
-    const vencimentoMesAtualJaPassouAgora = hoje.getTime() >= dataVencimentoMesAtual.getTime();
+    const vencimentoMesAtualJaPassouAgora = hoje.getTime() > dataVencimentoMesAtual.getTime();
     const revisaoAindaValida =
       cliente.em_revisao &&
       (estaAtrasado || (vencimentoMesAtualJaPassouAgora && !pagouEsteMes));
