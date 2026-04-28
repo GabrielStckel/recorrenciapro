@@ -198,85 +198,280 @@ export function ExportarPrevisaoDialog({ open, onOpenChange, clientes }: Exporta
   const exportarExcel = async () => {
     const wb = XLSX.utils.book_new();
 
-    // Summary sheet
+  const exportarExcel = async () => {
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Recorrência Pro';
+    wb.created = new Date();
+
+    // ========== ABA RESUMO ==========
     if (incluirResumo) {
-      const resumoData = [
-        ['Relatório de Previsão de Faturamento'],
-        [`Período: ${periodoLabel}`],
-        [`Gerado em: ${hoje.toLocaleString('pt-BR')}`],
-        [],
-        ['Resumo Geral'],
-        ['Total Geral', totais.total],
-        ['Quantidade de Parcelas', totais.qtd],
-        [],
-        ['Por Status'],
-        ['Pago', totais.pago],
-        ['A receber', totais.aReceber],
-        ['Em revisão', totais.emRevisao],
-        ['Atrasado', totais.atrasado],
-      ];
-      const wsResumo = XLSX.utils.aoa_to_sheet(resumoData);
-      wsResumo['!cols'] = [{ wch: 30 }, { wch: 20 }];
-      // Format currency cells
-      ['B6', 'B10', 'B11', 'B12', 'B13'].forEach(cell => {
-        if (wsResumo[cell]) wsResumo[cell].z = 'R$ #,##0.00';
+      const ws = wb.addWorksheet('Resumo', {
+        views: [{ showGridLines: false }],
       });
-      XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo');
+      ws.columns = [{ width: 35 }, { width: 22 }];
+
+      // Title banner
+      ws.mergeCells('A1:B1');
+      const titleCell = ws.getCell('A1');
+      titleCell.value = 'PREVISÃO DE FATURAMENTO';
+      titleCell.font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF10B981' } };
+      titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      ws.getRow(1).height = 30;
+
+      ws.mergeCells('A2:B2');
+      const subCell = ws.getCell('A2');
+      subCell.value = periodoLabel.charAt(0).toUpperCase() + periodoLabel.slice(1);
+      subCell.font = { name: 'Calibri', size: 11, color: { argb: 'FFFFFFFF' } };
+      subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF059669' } };
+      subCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      ws.getRow(2).height = 22;
+
+      ws.mergeCells('A3:B3');
+      const dateCell = ws.getCell('A3');
+      dateCell.value = `Gerado em: ${hoje.toLocaleString('pt-BR')}`;
+      dateCell.font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF64748B' } };
+      dateCell.alignment = { horizontal: 'center' };
+
+      // Section header: Resumo Geral
+      ws.getCell('A5').value = 'RESUMO GERAL';
+      ws.mergeCells('A5:B5');
+      const sec1 = ws.getCell('A5');
+      sec1.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
+      sec1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+      sec1.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+      ws.getRow(5).height = 22;
+
+      const resumoRows = [
+        ['Total Geral', totais.total, 'FF10B981'],
+        ['Quantidade de Parcelas', totais.qtd, null],
+      ];
+      resumoRows.forEach(([label, value, color], idx) => {
+        const r = 6 + idx;
+        ws.getCell(`A${r}`).value = label as string;
+        ws.getCell(`B${r}`).value = value as number;
+        ws.getCell(`A${r}`).font = { bold: true, size: 11 };
+        ws.getCell(`B${r}`).font = { bold: true, size: 11, color: color ? { argb: color as string } : undefined };
+        if (typeof value === 'number' && label !== 'Quantidade de Parcelas') {
+          ws.getCell(`B${r}`).numFmt = 'R$ #,##0.00';
+        }
+        ws.getCell(`A${r}`).alignment = { indent: 1 };
+        ws.getCell(`B${r}`).alignment = { horizontal: 'right' };
+        [`A${r}`, `B${r}`].forEach(c => {
+          ws.getCell(c).border = {
+            top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          };
+          ws.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+        });
+        ws.getRow(r).height = 22;
+      });
+
+      // Section: Por Status
+      ws.getCell('A9').value = 'POR STATUS';
+      ws.mergeCells('A9:B9');
+      const sec2 = ws.getCell('A9');
+      sec2.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
+      sec2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+      sec2.alignment = { vertical: 'middle', indent: 1 };
+      ws.getRow(9).height = 22;
+
+      const statusRows = [
+        { label: 'Pago', value: totais.pago, color: 'FF16A34A', bg: 'FFDCFCE7' },
+        { label: 'A receber', value: totais.aReceber, color: 'FF64748B', bg: 'FFF1F5F9' },
+        { label: 'Em revisão', value: totais.emRevisao, color: 'FFCA8A04', bg: 'FFFEF9C3' },
+        { label: 'Atrasado', value: totais.atrasado, color: 'FFDC2626', bg: 'FFFEE2E2' },
+      ];
+      statusRows.forEach((s, idx) => {
+        const r = 10 + idx;
+        ws.getCell(`A${r}`).value = s.label;
+        ws.getCell(`B${r}`).value = s.value;
+        ws.getCell(`B${r}`).numFmt = 'R$ #,##0.00';
+        ws.getCell(`A${r}`).font = { bold: true, color: { argb: s.color } };
+        ws.getCell(`B${r}`).font = { bold: true, color: { argb: s.color } };
+        ws.getCell(`A${r}`).alignment = { indent: 1 };
+        ws.getCell(`B${r}`).alignment = { horizontal: 'right' };
+        [`A${r}`, `B${r}`].forEach(c => {
+          ws.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: s.bg } };
+          ws.getCell(c).border = {
+            top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          };
+        });
+        ws.getRow(r).height = 22;
+      });
+
+      // Embed chart image if requested
+      if (incluirGrafico) {
+        const img = await captureChart();
+        if (img) {
+          const imageId = wb.addImage({ base64: img, extension: 'png' });
+          ws.addImage(imageId, {
+            tl: { col: 2.2, row: 0 },
+            ext: { width: 600, height: 320 },
+          });
+          ws.getColumn(3).width = 2;
+        }
+      }
     }
 
-    // Chart data sheet (aggregated)
-    const aggData = [
-      [modo === 'mes' ? 'Dia' : 'Mês', 'Valor (R$)'],
-      ...chartData.map(d => [d.dia, d.valor]),
-      ['Total', totais.total],
-    ];
-    const wsAgg = XLSX.utils.aoa_to_sheet(aggData);
-    wsAgg['!cols'] = [{ wch: 15 }, { wch: 18 }];
-    for (let i = 2; i <= chartData.length + 2; i++) {
-      const cell = `B${i}`;
-      if (wsAgg[cell]) wsAgg[cell].z = 'R$ #,##0.00';
-    }
-    XLSX.utils.book_append_sheet(wb, wsAgg, 'Gráfico');
+    // ========== ABA GRÁFICO (DADOS) ==========
+    {
+      const ws = wb.addWorksheet('Dados do Gráfico', {
+        views: [{ showGridLines: false }],
+      });
+      ws.columns = [{ width: 18 }, { width: 22 }];
 
-    // Details
+      // Header
+      const hdr = ws.getRow(1);
+      hdr.values = [modo === 'mes' ? 'Dia' : 'Mês', 'Valor (R$)'];
+      hdr.eachCell(c => {
+        c.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF10B981' } };
+        c.alignment = { vertical: 'middle', horizontal: 'center' };
+        c.border = {
+          top: { style: 'thin', color: { argb: 'FF059669' } },
+          bottom: { style: 'thin', color: { argb: 'FF059669' } },
+          left: { style: 'thin', color: { argb: 'FF059669' } },
+          right: { style: 'thin', color: { argb: 'FF059669' } },
+        };
+      });
+      hdr.height = 24;
+
+      chartData.forEach((d, idx) => {
+        const r = ws.addRow([d.dia, d.valor]);
+        r.getCell(2).numFmt = 'R$ #,##0.00';
+        const bg = idx % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC';
+        r.eachCell(c => {
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+          c.border = {
+            top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          };
+        });
+        r.getCell(1).alignment = { horizontal: 'center' };
+        r.getCell(2).alignment = { horizontal: 'right' };
+      });
+
+      // Total row
+      const totalRow = ws.addRow(['TOTAL', totais.total]);
+      totalRow.getCell(2).numFmt = 'R$ #,##0.00';
+      totalRow.eachCell(c => {
+        c.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+        c.border = {
+          top: { style: 'medium', color: { argb: 'FF10B981' } },
+          bottom: { style: 'thin', color: { argb: 'FF1E293B' } },
+          left: { style: 'thin', color: { argb: 'FF1E293B' } },
+          right: { style: 'thin', color: { argb: 'FF1E293B' } },
+        };
+      });
+      totalRow.getCell(1).alignment = { horizontal: 'center' };
+      totalRow.getCell(2).alignment = { horizontal: 'right' };
+      totalRow.height = 24;
+    }
+
+    // ========== ABA DETALHES ==========
     if (incluirDetalhes) {
-      const detData = [
-        ['Data', 'Cliente', 'Produto', 'Parcela', 'Valor (R$)', 'Status'],
-        ...parcelasData.map(p => [
-          p.data,
-          p.cliente,
-          p.produto,
-          `${p.numeroParcela}/${p.totalParcelas}`,
-          p.valor,
-          p.status,
-        ]),
+      const ws = wb.addWorksheet('Detalhes', {
+        views: [{ showGridLines: false, state: 'frozen', ySplit: 1 }],
+      });
+      ws.columns = [
+        { width: 14 }, { width: 32 }, { width: 26 }, { width: 12 }, { width: 16 }, { width: 16 },
       ];
-      const wsDet = XLSX.utils.aoa_to_sheet(detData);
-      wsDet['!cols'] = [
-        { wch: 12 }, { wch: 30 }, { wch: 25 }, { wch: 10 }, { wch: 15 }, { wch: 14 }
-      ];
-      for (let i = 2; i <= parcelasData.length + 1; i++) {
-        const cell = `E${i}`;
-        if (wsDet[cell]) wsDet[cell].z = 'R$ #,##0.00';
-      }
-      XLSX.utils.book_append_sheet(wb, wsDet, 'Detalhes');
-    }
 
-    // Embed chart image as separate sheet (image is supported via aoa with cell comments hack — use image embed via SheetJS Pro is not in OSS)
-    // Instead, write a note that chart is in PDF
-    if (incluirGrafico) {
-      const img = await captureChart();
-      if (img) {
-        // SheetJS community doesn't natively embed images well. Add a note sheet.
-        const wsNote = XLSX.utils.aoa_to_sheet([
-          ['Visualização Gráfica'],
-          ['Os dados do gráfico estão na aba "Gráfico". Para visualização gráfica, use o formato PDF.'],
+      // Header
+      const hdr = ws.getRow(1);
+      hdr.values = ['Data', 'Cliente', 'Produto', 'Parcela', 'Valor', 'Status'];
+      hdr.eachCell(c => {
+        c.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF10B981' } };
+        c.alignment = { vertical: 'middle', horizontal: 'center' };
+        c.border = {
+          top: { style: 'thin', color: { argb: 'FF059669' } },
+          bottom: { style: 'thin', color: { argb: 'FF059669' } },
+          left: { style: 'thin', color: { argb: 'FF059669' } },
+          right: { style: 'thin', color: { argb: 'FF059669' } },
+        };
+      });
+      hdr.height = 26;
+
+      const statusColors: Record<string, { fg: string; bg: string }> = {
+        'Pago': { fg: 'FF16A34A', bg: 'FFDCFCE7' },
+        'A receber': { fg: 'FF64748B', bg: 'FFF1F5F9' },
+        'Em revisão': { fg: 'FFCA8A04', bg: 'FFFEF9C3' },
+        'Atrasado': { fg: 'FFDC2626', bg: 'FFFEE2E2' },
+      };
+
+      parcelasData.forEach((p, idx) => {
+        const r = ws.addRow([
+          p.data, p.cliente, p.produto, `${p.numeroParcela}/${p.totalParcelas}`, p.valor, p.status,
         ]);
-        XLSX.utils.book_append_sheet(wb, wsNote, 'Sobre Gráfico');
-      }
+        const bg = idx % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC';
+        r.eachCell((c, col) => {
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+          c.border = {
+            top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          };
+          if (col === 5) {
+            c.numFmt = 'R$ #,##0.00';
+            c.alignment = { horizontal: 'right' };
+            c.font = { bold: true };
+          } else if (col === 1 || col === 4) {
+            c.alignment = { horizontal: 'center' };
+          }
+        });
+        // Status pill
+        const statusCell = r.getCell(6);
+        const sc = statusColors[p.status];
+        if (sc) {
+          statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: sc.bg } };
+          statusCell.font = { bold: true, color: { argb: sc.fg }, size: 10 };
+          statusCell.alignment = { horizontal: 'center' };
+        }
+        r.height = 20;
+      });
+
+      // Footer total
+      const lastRow = ws.addRow(['', '', '', 'TOTAL', totais.total, '']);
+      lastRow.getCell(5).numFmt = 'R$ #,##0.00';
+      lastRow.eachCell((c, col) => {
+        if (col === 4 || col === 5) {
+          c.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+          c.alignment = { horizontal: col === 5 ? 'right' : 'center' };
+          c.border = {
+            top: { style: 'medium', color: { argb: 'FF10B981' } },
+            bottom: { style: 'thin', color: { argb: 'FF1E293B' } },
+            left: { style: 'thin', color: { argb: 'FF1E293B' } },
+            right: { style: 'thin', color: { argb: 'FF1E293B' } },
+          };
+        }
+      });
+      lastRow.height = 26;
+
+      // Auto-filter on header
+      ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 6 } };
     }
 
-    XLSX.writeFile(wb, `previsao-faturamento-${periodoLabel.replace(/\s/g, '-').toLowerCase()}.xlsx`);
+    // Save
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `previsao-faturamento-${periodoLabel.replace(/\s/g, '-').toLowerCase()}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const exportarCSV = () => {
