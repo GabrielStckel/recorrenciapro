@@ -10,7 +10,7 @@ import { ClienteCalculado } from '@/types/cliente';
 import { Download, FileSpreadsheet, FileText, FileType, Loader2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { toast } from 'sonner';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
