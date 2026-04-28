@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { ClienteCalculado } from '@/types/cliente';
-import { Calendar, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, TrendingUp, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { ExportarPrevisaoDialog } from './ExportarPrevisaoDialog';
 
 interface ForecastChartProps {
   clientes: ClienteCalculado[];
@@ -19,6 +20,7 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
   const [viewMode, setViewMode] = useState<ViewMode>('mensal');
   const [selectedMonth, setSelectedMonth] = useState(() => new Date());
   const [monthsToShow, setMonthsToShow] = useState<6 | 12>(12); // Default 12 for desktop
+  const [exportOpen, setExportOpen] = useState(false);
 
   // Monthly forecast data (existing logic)
   const monthlyData = useMemo(() => {
