@@ -117,6 +117,9 @@ export function MovimentosModal({ cliente, open, onOpenChange }: MovimentosModal
                       {format(new Date(movimento.data_evento), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", {
                         locale: ptBR,
                       })}
+                      {movimento.registrado_por && (
+                        <span className="ml-1">• por <span className="font-medium text-foreground">{movimento.registrado_por}</span></span>
+                      )}
                     </p>
                   </div>
                 </div>
