@@ -69,7 +69,9 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
   const valor_pago = valor_parcela * cliente.parcelas_pagas;
   const valor_a_receber = cliente.valor_total - valor_pago;
 
-  const hoje = new Date();
+  const agora = new Date();
+  // "hoje" sem horário para comparar com vencimentos (que são meia-noite local)
+  const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
   const mesAtual = hoje.getMonth();
   const anoAtual = hoje.getFullYear();
 
