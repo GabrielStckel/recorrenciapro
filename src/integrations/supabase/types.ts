@@ -239,6 +239,7 @@ export type Database = {
           observacao: string | null
           parcelas_antes: number
           parcelas_depois: number
+          registrado_por: string | null
           tipo: string
         }
         Insert: {
@@ -250,6 +251,7 @@ export type Database = {
           observacao?: string | null
           parcelas_antes: number
           parcelas_depois: number
+          registrado_por?: string | null
           tipo: string
         }
         Update: {
@@ -261,6 +263,7 @@ export type Database = {
           observacao?: string | null
           parcelas_antes?: number
           parcelas_depois?: number
+          registrado_por?: string | null
           tipo?: string
         }
         Relationships: [
