@@ -1,0 +1,1 @@
+ALTER TABLE public.movimentos_parcelas ADD COLUMN IF NOT EXISTS registrado_por TEXT;

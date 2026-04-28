@@ -51,6 +51,7 @@ interface Movimento {
   parcelas_antes: number;
   parcelas_depois: number;
   observacao: string | null;
+  registrado_por: string | null;
   data_evento: string;
   created_at: string;
 }
@@ -379,13 +380,14 @@ export default function Historico() {
                 <TableHead>Cliente</TableHead>
                 <TableHead className="text-center">Ação</TableHead>
                 <TableHead className="text-center">Parcelas</TableHead>
+                <TableHead>Registrado por</TableHead>
                 <TableHead>Observação</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredMovimentos.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     Nenhum registro encontrado
                   </TableCell>
                 </TableRow>
@@ -423,6 +425,11 @@ export default function Historico() {
                     <TableCell className="text-center">
                       <span className="font-mono text-sm">
                         {mov.parcelas_antes} → {mov.parcelas_depois}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm">
+                        {mov.registrado_por || <span className="text-muted-foreground">-</span>}
                       </span>
                     </TableCell>
                     <TableCell>

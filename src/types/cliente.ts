@@ -69,7 +69,9 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
   const valor_pago = valor_parcela * cliente.parcelas_pagas;
   const valor_a_receber = cliente.valor_total - valor_pago;
 
-  const hoje = new Date();
+  const agora = new Date();
+  // "hoje" sem horário para comparar com vencimentos (que são meia-noite local)
+  const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
   const mesAtual = hoje.getMonth();
   const anoAtual = hoje.getFullYear();
 
@@ -110,12 +112,12 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
     // independente do campo data_ultimo_pagamento.
     let parcelasQueDeveriamEstarPagas = 0;
 
-    if (hoje.getTime() >= primeiraDataVencimentoCalc.getTime()) {
+    if (hoje.getTime() > primeiraDataVencimentoCalc.getTime()) {
       const diffMeses =
         (hoje.getFullYear() * 12 + hoje.getMonth()) -
         (primeiraDataVencimentoCalc.getFullYear() * 12 + primeiraDataVencimentoCalc.getMonth());
 
-      const incluiMesAtual = hoje.getTime() >= dataVencimentoMesAtual.getTime();
+      const incluiMesAtual = hoje.getTime() > dataVencimentoMesAtual.getTime();
       parcelasQueDeveriamEstarPagas = diffMeses + (incluiMesAtual ? 1 : 0);
     }
 
@@ -141,7 +143,7 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
 
     // "Não pagou" só é válido se o vencimento deste mês já passou
     // (se o vencimento foi alterado para o futuro, o flag anterior não se aplica)
-    const vencimentoMesAtualJaPassou = hoje.getTime() >= dataVencimentoMesAtual.getTime();
+    const vencimentoMesAtualJaPassou = hoje.getTime() > dataVencimentoMesAtual.getTime();
     const foiMarcadoNaoPagouValido = foiMarcadoNaoPagouEsteMes && vencimentoMesAtualJaPassou;
 
     // Cliente está atrasado se:
@@ -175,7 +177,7 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
     // Se o cliente está marcado em_revisao mas matematicamente está em dia
     // (parcelas pagas cobrem o que deveria estar pago e o vencimento do mês atual
     // ainda não chegou OU já pagou neste mês), não deve aparecer como "Em revisão"
-    const vencimentoMesAtualJaPassouAgora = hoje.getTime() >= dataVencimentoMesAtual.getTime();
+    const vencimentoMesAtualJaPassouAgora = hoje.getTime() > dataVencimentoMesAtual.getTime();
     const revisaoAindaValida =
       cliente.em_revisao &&
       (estaAtrasado || (vencimentoMesAtualJaPassouAgora && !pagouEsteMes));
