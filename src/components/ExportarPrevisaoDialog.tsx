@@ -515,120 +515,186 @@ export function ExportarPrevisaoDialog({ open, onOpenChange, clientes }: Exporta
   const exportarPDF = async () => {
     const doc = new jsPDF('p', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
-    let y = 15;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 10;
+    const contentW = pageWidth - margin * 2;
+    let y = 0;
 
-    // Header
+    // ===== Header verde no topo (estilo planilha title bar) =====
     doc.setFillColor(16, 185, 129);
-    doc.rect(0, 0, pageWidth, 30, 'F');
+    doc.rect(0, 0, pageWidth, 22, 'F');
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(18);
+    doc.setFontSize(15);
     doc.setFont('helvetica', 'bold');
-    doc.text('Previsão de Faturamento', 14, 14);
-    doc.setFontSize(10);
+    doc.text('PREVISÃO DE FATURAMENTO', margin, 10);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(periodoLabel.charAt(0).toUpperCase() + periodoLabel.slice(1), 14, 22);
-    doc.setFontSize(8);
-    doc.text(`Gerado em ${hoje.toLocaleString('pt-BR')}`, pageWidth - 14, 22, { align: 'right' });
+    doc.text(periodoLabel.charAt(0).toUpperCase() + periodoLabel.slice(1), margin, 17);
+    doc.setFontSize(7.5);
+    doc.text(`Gerado em ${hoje.toLocaleString('pt-BR')}`, pageWidth - margin, 17, { align: 'right' });
 
-    y = 40;
-    doc.setTextColor(0, 0, 0);
+    y = 28;
+    doc.setTextColor(15, 23, 42);
 
-    // Summary cards
+    // ===== Helper: desenha "célula" estilo planilha =====
+    const drawCell = (
+      x: number, yy: number, w: number, h: number,
+      text: string,
+      opts: {
+        bg?: [number, number, number];
+        fg?: [number, number, number];
+        bold?: boolean;
+        size?: number;
+        align?: 'left' | 'right' | 'center';
+        border?: boolean;
+      } = {}
+    ) => {
+      const { bg = [255, 255, 255], fg = [15, 23, 42], bold = false, size = 9, align = 'left', border = true } = opts;
+      doc.setFillColor(bg[0], bg[1], bg[2]);
+      doc.rect(x, yy, w, h, 'F');
+      if (border) {
+        doc.setDrawColor(203, 213, 225);
+        doc.setLineWidth(0.1);
+        doc.rect(x, yy, w, h, 'S');
+      }
+      doc.setTextColor(fg[0], fg[1], fg[2]);
+      doc.setFontSize(size);
+      doc.setFont('helvetica', bold ? 'bold' : 'normal');
+      const padding = 2;
+      const tx = align === 'right' ? x + w - padding : align === 'center' ? x + w / 2 : x + padding;
+      doc.text(text, tx, yy + h / 2 + size / 4, { align });
+    };
+
+    // ===== RESUMO (tabela estilo planilha) =====
     if (incluirResumo) {
-      const cards = [
-        { label: 'Total Geral', value: formatBRL(totais.total), color: [16, 185, 129] },
-        { label: 'Pago', value: formatBRL(totais.pago), color: [22, 163, 74] },
-        { label: 'A receber', value: formatBRL(totais.aReceber), color: [148, 163, 184] },
-        { label: 'Em atraso', value: formatBRL(totais.atrasado), color: [220, 38, 38] },
-      ];
-      const cardW = (pageWidth - 28 - 9) / 4;
-      cards.forEach((c, i) => {
-        const x = 14 + i * (cardW + 3);
-        doc.setFillColor(245, 245, 245);
-        doc.roundedRect(x, y, cardW, 22, 2, 2, 'F');
-        doc.setFillColor(c.color[0], c.color[1], c.color[2]);
-        doc.roundedRect(x, y, 2, 22, 1, 1, 'F');
-        doc.setFontSize(8);
-        doc.setTextColor(100, 100, 100);
-        doc.text(c.label, x + 5, y + 7);
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 0, 0);
-        doc.text(c.value, x + 5, y + 16);
-        doc.setFont('helvetica', 'normal');
+      // Section banner
+      drawCell(margin, y, contentW, 7, 'RESUMO GERAL', {
+        bg: [30, 41, 59], fg: [255, 255, 255], bold: true, size: 10, align: 'left', border: false,
       });
-      y += 30;
+      y += 7;
+
+      const colW1 = contentW * 0.55;
+      const colW2 = contentW * 0.45;
+      const rowH = 8;
+
+      // Header da tabela resumo
+      drawCell(margin, y, colW1, rowH, 'Indicador', { bg: [16, 185, 129], fg: [255, 255, 255], bold: true, size: 9 });
+      drawCell(margin + colW1, y, colW2, rowH, 'Valor', { bg: [16, 185, 129], fg: [255, 255, 255], bold: true, size: 9, align: 'right' });
+      y += rowH;
+
+      const resumoLinhas = [
+        { label: 'Total Geral', value: formatBRL(totais.total), color: [16, 185, 129] as [number, number, number], bold: true },
+        { label: 'Quantidade de Parcelas', value: String(totais.qtd), color: [15, 23, 42] as [number, number, number] },
+        { label: 'Pago', value: formatBRL(totais.pago), color: [22, 163, 74] as [number, number, number], bg: [220, 252, 231] as [number, number, number] },
+        { label: 'A receber', value: formatBRL(totais.aReceber), color: [100, 116, 139] as [number, number, number], bg: [241, 245, 249] as [number, number, number] },
+        { label: 'Em revisão', value: formatBRL(totais.emRevisao), color: [202, 138, 4] as [number, number, number], bg: [254, 249, 195] as [number, number, number] },
+        { label: 'Atrasado', value: formatBRL(totais.atrasado), color: [220, 38, 38] as [number, number, number], bg: [254, 226, 226] as [number, number, number] },
+      ];
+      resumoLinhas.forEach((r, i) => {
+        const bg = r.bg || (i % 2 === 0 ? [255, 255, 255] : [248, 250, 252]) as [number, number, number];
+        drawCell(margin, y, colW1, rowH, r.label, { bg, bold: true, size: 9 });
+        drawCell(margin + colW1, y, colW2, rowH, r.value, { bg, fg: r.color, bold: true, size: 10, align: 'right' });
+        y += rowH;
+      });
+      y += 4;
     }
 
-    // Chart image
+    // ===== GRÁFICO =====
     if (incluirGrafico) {
       const img = await captureChart();
       if (img) {
-        const imgW = pageWidth - 28;
-        const imgH = 70;
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Distribuição', 14, y);
-        y += 5;
-        doc.addImage(img, 'PNG', 14, y, imgW, imgH);
-        y += imgH + 8;
+        if (y + 78 > pageHeight - 15) { doc.addPage(); y = 15; }
+        drawCell(margin, y, contentW, 7, modo === 'mes' ? 'GRÁFICO • DISTRIBUIÇÃO POR DIA' : 'GRÁFICO • DISTRIBUIÇÃO POR MÊS', {
+          bg: [30, 41, 59], fg: [255, 255, 255], bold: true, size: 10, border: false,
+        });
+        y += 7;
+        // White panel
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(203, 213, 225);
+        doc.setLineWidth(0.2);
+        doc.rect(margin, y, contentW, 75, 'FD');
+        doc.addImage(img, 'PNG', margin + 2, y + 2, contentW - 4, 71);
+        y += 78;
       }
     }
 
-    // Details table
+    // ===== DETALHES (tabela com look de planilha) =====
     if (incluirDetalhes && parcelasData.length > 0) {
-      if (y > 240) { doc.addPage(); y = 15; }
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0, 0, 0);
-      doc.text('Detalhes das Parcelas', 14, y);
-      y += 4;
+      if (y + 20 > pageHeight - 15) { doc.addPage(); y = 15; }
+
+      drawCell(margin, y, contentW, 7, 'DETALHES DAS PARCELAS', {
+        bg: [30, 41, 59], fg: [255, 255, 255], bold: true, size: 10, border: false,
+      });
+      y += 7;
 
       autoTable(doc, {
         startY: y,
+        margin: { left: margin, right: margin },
         head: [['Data', 'Cliente', 'Produto', 'Parc.', 'Valor', 'Status']],
         body: parcelasData.map(p => [
-          p.data,
-          p.cliente,
-          p.produto,
-          `${p.numeroParcela}/${p.totalParcelas}`,
-          formatBRL(p.valor),
-          p.status,
+          p.data, p.cliente, p.produto, `${p.numeroParcela}/${p.totalParcelas}`, formatBRL(p.valor), p.status,
         ]),
-        styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold' },
+        foot: [['', '', '', 'TOTAL', formatBRL(totais.total), '']],
+        theme: 'grid',
+        styles: {
+          fontSize: 8,
+          cellPadding: 2,
+          lineColor: [203, 213, 225],
+          lineWidth: 0.1,
+          textColor: [15, 23, 42],
+        },
+        headStyles: {
+          fillColor: [16, 185, 129],
+          textColor: 255,
+          fontStyle: 'bold',
+          fontSize: 9,
+          halign: 'center',
+        },
+        footStyles: {
+          fillColor: [30, 41, 59],
+          textColor: 255,
+          fontStyle: 'bold',
+          fontSize: 9,
+        },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         columnStyles: {
-          0: { cellWidth: 22 },
+          0: { cellWidth: 22, halign: 'center' },
+          1: { cellWidth: 'auto' },
+          2: { cellWidth: 38 },
           3: { cellWidth: 14, halign: 'center' },
-          4: { cellWidth: 26, halign: 'right' },
-          5: { cellWidth: 22, halign: 'center' },
+          4: { cellWidth: 26, halign: 'right', fontStyle: 'bold' },
+          5: { cellWidth: 24, halign: 'center', fontStyle: 'bold' },
         },
         didParseCell: (data) => {
           if (data.section === 'body' && data.column.index === 5) {
             const status = data.cell.raw as string;
-            const colorMap: Record<string, [number, number, number]> = {
-              'Pago': [22, 163, 74],
-              'A receber': [100, 116, 139],
-              'Atrasado': [220, 38, 38],
-              'Em revisão': [202, 138, 4],
+            const colorMap: Record<string, { fg: [number, number, number]; bg: [number, number, number] }> = {
+              'Pago': { fg: [22, 163, 74], bg: [220, 252, 231] },
+              'A receber': { fg: [100, 116, 139], bg: [241, 245, 249] },
+              'Atrasado': { fg: [220, 38, 38], bg: [254, 226, 226] },
+              'Em revisão': { fg: [202, 138, 4], bg: [254, 249, 195] },
             };
-            if (colorMap[status]) {
-              data.cell.styles.textColor = colorMap[status];
-              data.cell.styles.fontStyle = 'bold';
+            const c = colorMap[status];
+            if (c) {
+              data.cell.styles.textColor = c.fg;
+              data.cell.styles.fillColor = c.bg;
             }
+          }
+          if (data.section === 'foot' && data.column.index === 4) {
+            data.cell.styles.halign = 'right';
           }
         },
       });
     }
 
-    // Footer page numbers
+    // ===== Footer com números de página =====
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
-      doc.setFontSize(8);
-      doc.setTextColor(150, 150, 150);
-      doc.text(`Página ${i} de ${pageCount} • Recorrência Pro`, pageWidth / 2, doc.internal.pageSize.getHeight() - 8, { align: 'center' });
+      doc.setFontSize(7.5);
+      doc.setTextColor(148, 163, 184);
+      doc.text('Recorrência Pro', margin, pageHeight - 6);
+      doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin, pageHeight - 6, { align: 'right' });
     }
 
     doc.save(`previsao-faturamento-${periodoLabel.replace(/\s/g, '-').toLowerCase()}.pdf`);
