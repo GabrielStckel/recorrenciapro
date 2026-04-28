@@ -290,6 +290,7 @@ export function useClientes() {
         parcelas_antes: parcelasAntes,
         parcelas_depois: novasParcelas,
         observacao: observacao || 'Pagamento confirmado via revisão',
+        registrado_por: user?.email || null,
       });
       
       // Add to payment history
