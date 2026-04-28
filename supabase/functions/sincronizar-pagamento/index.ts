@@ -68,6 +68,13 @@ Deno.serve(async (req) => {
     let updateError = null
 
     if (action === 'pagamento_confirmado') {
+      // Buscar parcelas atuais do parceiro para registrar movimento
+      const { data: parceiroAntes } = await supabaseAdmin
+        .from('clientes_parcelados')
+        .select('parcelas_pagas, valor_total, total_parcelas')
+        .eq('id', parceiroClienteId)
+        .single()
+
       const { error } = await supabaseAdmin
         .from('clientes_parcelados')
         .update({
@@ -81,7 +88,40 @@ Deno.serve(async (req) => {
         .eq('id', parceiroClienteId)
       updateError = error
 
+      // Registrar movimento espelhado no parceiro
+      if (!error && parceiroAntes) {
+        const delta = body.parcelas_pagas - parceiroAntes.parcelas_pagas
+        if (delta !== 0) {
+          await supabaseAdmin.from('movimentos_parcelas').insert({
+            cliente_id: parceiroClienteId,
+            tipo: delta > 0 ? 'INCREMENTO' : 'DECREMENTO',
+            delta_parcelas: delta,
+            parcelas_antes: parceiroAntes.parcelas_pagas,
+            parcelas_depois: body.parcelas_pagas,
+            observacao: 'Sincronizado do sócio',
+            registrado_por: user.email,
+          })
+
+          // Histórico de pagamento espelhado quando incrementa
+          if (delta > 0) {
+            const valorParcela = parceiroAntes.valor_total / parceiroAntes.total_parcelas
+            await supabaseAdmin.from('historico_pagamentos').insert({
+              cliente_id: parceiroClienteId,
+              valor_pago: valorParcela,
+              numero_parcela: body.parcelas_pagas,
+              registrado_por: user.email,
+            })
+          }
+        }
+      }
+
     } else if (action === 'pagamento_removido') {
+      const { data: parceiroAntes } = await supabaseAdmin
+        .from('clientes_parcelados')
+        .select('parcelas_pagas')
+        .eq('id', parceiroClienteId)
+        .single()
+
       const { error } = await supabaseAdmin
         .from('clientes_parcelados')
         .update({
@@ -90,6 +130,21 @@ Deno.serve(async (req) => {
         })
         .eq('id', parceiroClienteId)
       updateError = error
+
+      if (!error && parceiroAntes) {
+        const delta = body.parcelas_pagas - parceiroAntes.parcelas_pagas
+        if (delta !== 0) {
+          await supabaseAdmin.from('movimentos_parcelas').insert({
+            cliente_id: parceiroClienteId,
+            tipo: delta > 0 ? 'INCREMENTO' : 'DECREMENTO',
+            delta_parcelas: delta,
+            parcelas_antes: parceiroAntes.parcelas_pagas,
+            parcelas_depois: body.parcelas_pagas,
+            observacao: 'Sincronizado do sócio (estorno)',
+            registrado_por: user.email,
+          })
+        }
+      }
 
     } else if (action === 'marcado_atrasado') {
       const hoje = new Date()
