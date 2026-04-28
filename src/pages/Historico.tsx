@@ -51,6 +51,7 @@ interface Movimento {
   parcelas_antes: number;
   parcelas_depois: number;
   observacao: string | null;
+  registrado_por: string | null;
   data_evento: string;
   created_at: string;
 }
