@@ -200,267 +200,279 @@ export function ExportarPrevisaoDialog({ open, onOpenChange, clientes }: Exporta
     wb.creator = 'Recorrência Pro';
     wb.created = new Date();
 
-    // ========== ABA RESUMO ==========
+    // Cores
+    const HEADER_BG = 'FF10B981';      // emerald
+    const HEADER_FG = 'FFFFFFFF';
+    const SECTION_BG = 'FFE2E8F0';     // slate-200 (legível)
+    const SECTION_FG = 'FF0F172A';     // slate-900
+    const TOTAL_BG = 'FFFEF3C7';       // amber-100
+    const TOTAL_FG = 'FF92400E';       // amber-800
+    const STRIPE_BG = 'FFF8FAFC';
+    const BORDER = { style: 'thin' as const, color: { argb: 'FFCBD5E1' } };
+    const allBorders = { top: BORDER, bottom: BORDER, left: BORDER, right: BORDER };
+    const statusColors: Record<string, { fg: string; bg: string }> = {
+      'Pago': { fg: 'FF15803D', bg: 'FFDCFCE7' },
+      'A receber': { fg: 'FF334155', bg: 'FFF1F5F9' },
+      'Em revisão': { fg: 'FF92400E', bg: 'FFFEF3C7' },
+      'Atrasado': { fg: 'FFB91C1C', bg: 'FFFEE2E2' },
+    };
+
+    // ===== ÚNICA ABA "Relatório" com tudo =====
+    const ws = wb.addWorksheet('Relatório', {
+      views: [{ showGridLines: true, state: 'frozen', ySplit: 0 }],
+      pageSetup: { orientation: 'portrait', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 } },
+    });
+    ws.columns = [
+      { width: 14 },  // A - Data
+      { width: 32 },  // B - Cliente
+      { width: 24 },  // C - Produto
+      { width: 10 },  // D - Parcela
+      { width: 16 },  // E - Valor
+      { width: 16 },  // F - Status
+    ];
+
+    let row = 1;
+
+    // Título
+    ws.mergeCells(`A${row}:F${row}`);
+    const t = ws.getCell(`A${row}`);
+    t.value = 'PREVISÃO DE FATURAMENTO';
+    t.font = { name: 'Calibri', size: 18, bold: true, color: { argb: HEADER_FG } };
+    t.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_BG } };
+    t.alignment = { vertical: 'middle', horizontal: 'center' };
+    ws.getRow(row).height = 32;
+    row++;
+
+    // Período
+    ws.mergeCells(`A${row}:F${row}`);
+    const p = ws.getCell(`A${row}`);
+    p.value = periodoLabel.charAt(0).toUpperCase() + periodoLabel.slice(1);
+    p.font = { name: 'Calibri', size: 12, bold: true, color: { argb: SECTION_FG } };
+    p.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: SECTION_BG } };
+    p.alignment = { vertical: 'middle', horizontal: 'center' };
+    ws.getRow(row).height = 22;
+    row++;
+
+    // Gerado em
+    ws.mergeCells(`A${row}:F${row}`);
+    const d = ws.getCell(`A${row}`);
+    d.value = `Gerado em: ${hoje.toLocaleString('pt-BR')}`;
+    d.font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF64748B' } };
+    d.alignment = { horizontal: 'center' };
+    row += 2;
+
+    // ===== RESUMO =====
     if (incluirResumo) {
-      const ws = wb.addWorksheet('Resumo', {
-        views: [{ showGridLines: false }],
-      });
-      ws.columns = [{ width: 35 }, { width: 22 }];
+      ws.mergeCells(`A${row}:F${row}`);
+      const sec = ws.getCell(`A${row}`);
+      sec.value = '  RESUMO GERAL';
+      sec.font = { bold: true, size: 12, color: { argb: SECTION_FG } };
+      sec.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: SECTION_BG } };
+      sec.alignment = { vertical: 'middle' };
+      ws.getRow(row).height = 22;
+      row++;
 
-      // Title banner
-      ws.mergeCells('A1:B1');
-      const titleCell = ws.getCell('A1');
-      titleCell.value = 'PREVISÃO DE FATURAMENTO';
-      titleCell.font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
-      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF10B981' } };
-      titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
-      ws.getRow(1).height = 30;
-
-      ws.mergeCells('A2:B2');
-      const subCell = ws.getCell('A2');
-      subCell.value = periodoLabel.charAt(0).toUpperCase() + periodoLabel.slice(1);
-      subCell.font = { name: 'Calibri', size: 11, color: { argb: 'FFFFFFFF' } };
-      subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF059669' } };
-      subCell.alignment = { vertical: 'middle', horizontal: 'center' };
-      ws.getRow(2).height = 22;
-
-      ws.mergeCells('A3:B3');
-      const dateCell = ws.getCell('A3');
-      dateCell.value = `Gerado em: ${hoje.toLocaleString('pt-BR')}`;
-      dateCell.font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF64748B' } };
-      dateCell.alignment = { horizontal: 'center' };
-
-      // Section header: Resumo Geral
-      ws.getCell('A5').value = 'RESUMO GERAL';
-      ws.mergeCells('A5:B5');
-      const sec1 = ws.getCell('A5');
-      sec1.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
-      sec1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
-      sec1.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-      ws.getRow(5).height = 22;
-
-      const resumoRows = [
-        ['Total Geral', totais.total, 'FF10B981'],
-        ['Quantidade de Parcelas', totais.qtd, null],
+      // Cabeçalho de duas colunas (label, valor) ocupando A-C / D-F
+      const headers = [
+        { label: 'Indicador', range: `A${row}:C${row}`, cell: `A${row}` },
+        { label: 'Valor', range: `D${row}:F${row}`, cell: `D${row}` },
       ];
-      resumoRows.forEach(([label, value, color], idx) => {
-        const r = 6 + idx;
-        ws.getCell(`A${r}`).value = label as string;
-        ws.getCell(`B${r}`).value = value as number;
-        ws.getCell(`A${r}`).font = { bold: true, size: 11 };
-        ws.getCell(`B${r}`).font = { bold: true, size: 11, color: color ? { argb: color as string } : undefined };
-        if (typeof value === 'number' && label !== 'Quantidade de Parcelas') {
-          ws.getCell(`B${r}`).numFmt = 'R$ #,##0.00';
-        }
-        ws.getCell(`A${r}`).alignment = { indent: 1 };
-        ws.getCell(`B${r}`).alignment = { horizontal: 'right' };
-        [`A${r}`, `B${r}`].forEach(c => {
-          ws.getCell(c).border = {
-            top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-            bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-            left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-            right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          };
-          ws.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
-        });
-        ws.getRow(r).height = 22;
+      headers.forEach(h => {
+        ws.mergeCells(h.range);
+        const c = ws.getCell(h.cell);
+        c.value = h.label;
+        c.font = { bold: true, size: 11, color: { argb: HEADER_FG } };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_BG } };
+        c.alignment = { vertical: 'middle', horizontal: 'center' };
+        c.border = allBorders;
       });
+      ws.getRow(row).height = 22;
+      row++;
 
-      // Section: Por Status
-      ws.getCell('A9').value = 'POR STATUS';
-      ws.mergeCells('A9:B9');
-      const sec2 = ws.getCell('A9');
-      sec2.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
-      sec2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
-      sec2.alignment = { vertical: 'middle', indent: 1 };
-      ws.getRow(9).height = 22;
-
-      const statusRows = [
-        { label: 'Pago', value: totais.pago, color: 'FF16A34A', bg: 'FFDCFCE7' },
-        { label: 'A receber', value: totais.aReceber, color: 'FF64748B', bg: 'FFF1F5F9' },
-        { label: 'Em revisão', value: totais.emRevisao, color: 'FFCA8A04', bg: 'FFFEF9C3' },
-        { label: 'Atrasado', value: totais.atrasado, color: 'FFDC2626', bg: 'FFFEE2E2' },
+      const resumoLinhas: { label: string; value: number | string; isBRL: boolean; tone?: { fg: string; bg: string } }[] = [
+        { label: 'Total Geral', value: totais.total, isBRL: true, tone: { fg: 'FF065F46', bg: 'FFD1FAE5' } },
+        { label: 'Quantidade de Parcelas', value: totais.qtd, isBRL: false },
+        { label: 'Pago', value: totais.pago, isBRL: true, tone: statusColors['Pago'] },
+        { label: 'A receber', value: totais.aReceber, isBRL: true, tone: statusColors['A receber'] },
+        { label: 'Em revisão', value: totais.emRevisao, isBRL: true, tone: statusColors['Em revisão'] },
+        { label: 'Atrasado', value: totais.atrasado, isBRL: true, tone: statusColors['Atrasado'] },
       ];
-      statusRows.forEach((s, idx) => {
-        const r = 10 + idx;
-        ws.getCell(`A${r}`).value = s.label;
-        ws.getCell(`B${r}`).value = s.value;
-        ws.getCell(`B${r}`).numFmt = 'R$ #,##0.00';
-        ws.getCell(`A${r}`).font = { bold: true, color: { argb: s.color } };
-        ws.getCell(`B${r}`).font = { bold: true, color: { argb: s.color } };
-        ws.getCell(`A${r}`).alignment = { indent: 1 };
-        ws.getCell(`B${r}`).alignment = { horizontal: 'right' };
-        [`A${r}`, `B${r}`].forEach(c => {
-          ws.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: s.bg } };
-          ws.getCell(c).border = {
-            top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-            bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-            left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-            right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          };
-        });
-        ws.getRow(r).height = 22;
-      });
 
-      // Embed chart image if requested
-      if (incluirGrafico) {
-        const img = await captureChart();
-        if (img) {
-          const imageId = wb.addImage({ base64: img, extension: 'png' });
-          ws.addImage(imageId, {
-            tl: { col: 2.2, row: 0 },
-            ext: { width: 600, height: 320 },
-          });
-          ws.getColumn(3).width = 2;
+      resumoLinhas.forEach(item => {
+        ws.mergeCells(`A${row}:C${row}`);
+        ws.mergeCells(`D${row}:F${row}`);
+        const labelC = ws.getCell(`A${row}`);
+        const valC = ws.getCell(`D${row}`);
+        labelC.value = item.label;
+        valC.value = item.value;
+        if (item.isBRL) valC.numFmt = 'R$ #,##0.00';
+        const bg = item.tone?.bg || 'FFFFFFFF';
+        const fg = item.tone?.fg || SECTION_FG;
+        [labelC, valC].forEach(c => {
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+          c.font = { bold: true, size: 11, color: { argb: fg } };
+          c.border = allBorders;
+        });
+        labelC.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+        valC.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
+        ws.getRow(row).height = 22;
+        row++;
+      });
+      row++;
+    }
+
+    // ===== GRÁFICO (imagem embedada) =====
+    if (incluirGrafico) {
+      ws.mergeCells(`A${row}:F${row}`);
+      const sec = ws.getCell(`A${row}`);
+      sec.value = modo === 'mes' ? '  GRÁFICO • DISTRIBUIÇÃO POR DIA' : '  GRÁFICO • DISTRIBUIÇÃO POR MÊS';
+      sec.font = { bold: true, size: 12, color: { argb: SECTION_FG } };
+      sec.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: SECTION_BG } };
+      sec.alignment = { vertical: 'middle' };
+      ws.getRow(row).height = 22;
+      row++;
+
+      const img = await captureChart();
+      if (img) {
+        const imageId = wb.addImage({ base64: img, extension: 'png' });
+        // Reservar espaço de ~16 linhas para a imagem
+        const startRow = row;
+        for (let i = 0; i < 16; i++) {
+          ws.getRow(row).height = 18;
+          row++;
         }
+        ws.addImage(imageId, {
+          tl: { col: 0, row: startRow - 1 },
+          ext: { width: 720, height: 280 },
+        });
       }
-    }
 
-    // ========== ABA GRÁFICO (DADOS) ==========
-    {
-      const ws = wb.addWorksheet('Dados do Gráfico', {
-        views: [{ showGridLines: false }],
-      });
-      ws.columns = [{ width: 18 }, { width: 22 }];
-
-      // Header
-      const hdr = ws.getRow(1);
-      hdr.values = [modo === 'mes' ? 'Dia' : 'Mês', 'Valor (R$)'];
-      hdr.eachCell(c => {
-        c.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
-        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF10B981' } };
+      // Tabela de dados do gráfico (Dia/Mês × Valor)
+      row++;
+      ws.mergeCells(`A${row}:C${row}`);
+      ws.mergeCells(`D${row}:F${row}`);
+      const h1 = ws.getCell(`A${row}`);
+      const h2 = ws.getCell(`D${row}`);
+      h1.value = modo === 'mes' ? 'Dia' : 'Mês';
+      h2.value = 'Valor';
+      [h1, h2].forEach(c => {
+        c.font = { bold: true, size: 11, color: { argb: HEADER_FG } };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_BG } };
         c.alignment = { vertical: 'middle', horizontal: 'center' };
-        c.border = {
-          top: { style: 'thin', color: { argb: 'FF059669' } },
-          bottom: { style: 'thin', color: { argb: 'FF059669' } },
-          left: { style: 'thin', color: { argb: 'FF059669' } },
-          right: { style: 'thin', color: { argb: 'FF059669' } },
-        };
+        c.border = allBorders;
       });
-      hdr.height = 24;
+      ws.getRow(row).height = 22;
+      row++;
 
-      chartData.forEach((d, idx) => {
-        const r = ws.addRow([d.dia, d.valor]);
-        r.getCell(2).numFmt = 'R$ #,##0.00';
-        const bg = idx % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC';
-        r.eachCell(c => {
+      chartData.forEach((cd, idx) => {
+        ws.mergeCells(`A${row}:C${row}`);
+        ws.mergeCells(`D${row}:F${row}`);
+        const a = ws.getCell(`A${row}`);
+        const b = ws.getCell(`D${row}`);
+        a.value = cd.dia;
+        b.value = cd.valor;
+        b.numFmt = 'R$ #,##0.00';
+        const bg = idx % 2 === 0 ? 'FFFFFFFF' : STRIPE_BG;
+        [a, b].forEach(c => {
           c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
-          c.border = {
-            top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-            bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-            left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-            right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          };
+          c.border = allBorders;
         });
-        r.getCell(1).alignment = { horizontal: 'center' };
-        r.getCell(2).alignment = { horizontal: 'right' };
+        a.alignment = { horizontal: 'center', vertical: 'middle' };
+        b.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+        ws.getRow(row).height = 20;
+        row++;
       });
-
-      // Total row
-      const totalRow = ws.addRow(['TOTAL', totais.total]);
-      totalRow.getCell(2).numFmt = 'R$ #,##0.00';
-      totalRow.eachCell(c => {
-        c.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
-        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
-        c.border = {
-          top: { style: 'medium', color: { argb: 'FF10B981' } },
-          bottom: { style: 'thin', color: { argb: 'FF1E293B' } },
-          left: { style: 'thin', color: { argb: 'FF1E293B' } },
-          right: { style: 'thin', color: { argb: 'FF1E293B' } },
-        };
-      });
-      totalRow.getCell(1).alignment = { horizontal: 'center' };
-      totalRow.getCell(2).alignment = { horizontal: 'right' };
-      totalRow.height = 24;
+      row++;
     }
 
-    // ========== ABA DETALHES ==========
-    if (incluirDetalhes) {
-      const ws = wb.addWorksheet('Detalhes', {
-        views: [{ showGridLines: false, state: 'frozen', ySplit: 1 }],
-      });
-      ws.columns = [
-        { width: 14 }, { width: 32 }, { width: 26 }, { width: 12 }, { width: 16 }, { width: 16 },
-      ];
+    // ===== DETALHES =====
+    if (incluirDetalhes && parcelasData.length > 0) {
+      ws.mergeCells(`A${row}:F${row}`);
+      const sec = ws.getCell(`A${row}`);
+      sec.value = '  DETALHES DAS PARCELAS';
+      sec.font = { bold: true, size: 12, color: { argb: SECTION_FG } };
+      sec.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: SECTION_BG } };
+      sec.alignment = { vertical: 'middle' };
+      ws.getRow(row).height = 22;
+      row++;
 
       // Header
-      const hdr = ws.getRow(1);
-      hdr.values = ['Data', 'Cliente', 'Produto', 'Parcela', 'Valor', 'Status'];
-      hdr.eachCell(c => {
-        c.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
-        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF10B981' } };
+      const headers = ['Data', 'Cliente', 'Produto', 'Parcela', 'Valor', 'Status'];
+      headers.forEach((h, i) => {
+        const c = ws.getCell(row, i + 1);
+        c.value = h;
+        c.font = { bold: true, color: { argb: HEADER_FG }, size: 11 };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_BG } };
         c.alignment = { vertical: 'middle', horizontal: 'center' };
-        c.border = {
-          top: { style: 'thin', color: { argb: 'FF059669' } },
-          bottom: { style: 'thin', color: { argb: 'FF059669' } },
-          left: { style: 'thin', color: { argb: 'FF059669' } },
-          right: { style: 'thin', color: { argb: 'FF059669' } },
-        };
+        c.border = allBorders;
       });
-      hdr.height = 26;
+      ws.getRow(row).height = 24;
+      const headerRow = row;
+      row++;
 
-      const statusColors: Record<string, { fg: string; bg: string }> = {
-        'Pago': { fg: 'FF16A34A', bg: 'FFDCFCE7' },
-        'A receber': { fg: 'FF64748B', bg: 'FFF1F5F9' },
-        'Em revisão': { fg: 'FFCA8A04', bg: 'FFFEF9C3' },
-        'Atrasado': { fg: 'FFDC2626', bg: 'FFFEE2E2' },
-      };
-
+      const detailStartRow = row;
       parcelasData.forEach((p, idx) => {
-        const r = ws.addRow([
+        const cells = [
           p.data, p.cliente, p.produto, `${p.numeroParcela}/${p.totalParcelas}`, p.valor, p.status,
-        ]);
-        const bg = idx % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC';
-        r.eachCell((c, col) => {
+        ];
+        cells.forEach((val, i) => {
+          const c = ws.getCell(row, i + 1);
+          c.value = val;
+          const bg = idx % 2 === 0 ? 'FFFFFFFF' : STRIPE_BG;
           c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
-          c.border = {
-            top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-            bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-            left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-            right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          };
-          if (col === 5) {
+          c.border = allBorders;
+          c.font = { size: 10, color: { argb: SECTION_FG } };
+          if (i === 4) {
             c.numFmt = 'R$ #,##0.00';
-            c.alignment = { horizontal: 'right' };
-            c.font = { bold: true };
-          } else if (col === 1 || col === 4) {
-            c.alignment = { horizontal: 'center' };
+            c.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+            c.font = { size: 10, bold: true, color: { argb: SECTION_FG } };
+          } else if (i === 0 || i === 3) {
+            c.alignment = { horizontal: 'center', vertical: 'middle' };
+          } else {
+            c.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
           }
         });
-        // Status pill
-        const statusCell = r.getCell(6);
         const sc = statusColors[p.status];
         if (sc) {
-          statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: sc.bg } };
-          statusCell.font = { bold: true, color: { argb: sc.fg }, size: 10 };
-          statusCell.alignment = { horizontal: 'center' };
+          const stCell = ws.getCell(row, 6);
+          stCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: sc.bg } };
+          stCell.font = { bold: true, color: { argb: sc.fg }, size: 10 };
+          stCell.alignment = { horizontal: 'center', vertical: 'middle' };
         }
-        r.height = 20;
+        ws.getRow(row).height = 20;
+        row++;
       });
+      const detailEndRow = row - 1;
 
-      // Footer total
-      const lastRow = ws.addRow(['', '', '', 'TOTAL', totais.total, '']);
-      lastRow.getCell(5).numFmt = 'R$ #,##0.00';
-      lastRow.eachCell((c, col) => {
-        if (col === 4 || col === 5) {
-          c.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
-          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
-          c.alignment = { horizontal: col === 5 ? 'right' : 'center' };
-          c.border = {
-            top: { style: 'medium', color: { argb: 'FF10B981' } },
-            bottom: { style: 'thin', color: { argb: 'FF1E293B' } },
-            left: { style: 'thin', color: { argb: 'FF1E293B' } },
-            right: { style: 'thin', color: { argb: 'FF1E293B' } },
-          };
-        }
-      });
-      lastRow.height = 26;
+      // Linha de TOTAL única ao final
+      const totalLabel = ws.getCell(row, 4);
+      const totalVal = ws.getCell(row, 5);
+      ws.mergeCells(row, 1, row, 4);
+      const tl = ws.getCell(row, 1);
+      tl.value = 'TOTAL';
+      tl.font = { bold: true, size: 12, color: { argb: TOTAL_FG } };
+      tl.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+      tl.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TOTAL_BG } };
+      tl.border = allBorders;
 
-      // Auto-filter on header
-      ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 6 } };
+      totalVal.value = { formula: `SUM(E${detailStartRow}:E${detailEndRow})` };
+      totalVal.numFmt = 'R$ #,##0.00';
+      totalVal.font = { bold: true, size: 12, color: { argb: TOTAL_FG } };
+      totalVal.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+      totalVal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TOTAL_BG } };
+      totalVal.border = allBorders;
+
+      const emptyF = ws.getCell(row, 6);
+      emptyF.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TOTAL_BG } };
+      emptyF.border = allBorders;
+      ws.getRow(row).height = 26;
+
+      // Auto-filtro nos cabeçalhos
+      ws.autoFilter = { from: { row: headerRow, column: 1 }, to: { row: headerRow, column: 6 } };
+      // Congelar linha do cabeçalho de detalhes
+      ws.views = [{ state: 'frozen', xSplit: 0, ySplit: headerRow, showGridLines: true }];
     }
 
-    // Save
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob);
@@ -565,33 +577,37 @@ export function ExportarPrevisaoDialog({ open, onOpenChange, clientes }: Exporta
       doc.text(text, tx, yy + h / 2 + size / 4, { align });
     };
 
-    // ===== RESUMO (tabela estilo planilha) =====
-    if (incluirResumo) {
-      // Section banner
-      drawCell(margin, y, contentW, 7, 'RESUMO GERAL', {
-        bg: [30, 41, 59], fg: [255, 255, 255], bold: true, size: 10, align: 'left', border: false,
+    // Section banner helper (cinza claro com texto escuro - legível)
+    const drawSectionBanner = (label: string) => {
+      drawCell(margin, y, contentW, 7, label, {
+        bg: [226, 232, 240], fg: [15, 23, 42], bold: true, size: 10, align: 'left', border: false,
       });
       y += 7;
+    };
+
+    // ===== RESUMO (tabela estilo planilha) =====
+    if (incluirResumo) {
+      drawSectionBanner('  RESUMO GERAL');
 
       const colW1 = contentW * 0.55;
       const colW2 = contentW * 0.45;
       const rowH = 8;
 
-      // Header da tabela resumo
-      drawCell(margin, y, colW1, rowH, 'Indicador', { bg: [16, 185, 129], fg: [255, 255, 255], bold: true, size: 9 });
-      drawCell(margin + colW1, y, colW2, rowH, 'Valor', { bg: [16, 185, 129], fg: [255, 255, 255], bold: true, size: 9, align: 'right' });
+      // Header da tabela resumo (verde com texto branco — só nos headers de tabela)
+      drawCell(margin, y, colW1, rowH, 'Indicador', { bg: [16, 185, 129], fg: [255, 255, 255], bold: true, size: 9, align: 'center' });
+      drawCell(margin + colW1, y, colW2, rowH, 'Valor', { bg: [16, 185, 129], fg: [255, 255, 255], bold: true, size: 9, align: 'center' });
       y += rowH;
 
       const resumoLinhas = [
-        { label: 'Total Geral', value: formatBRL(totais.total), color: [16, 185, 129] as [number, number, number], bold: true },
+        { label: 'Total Geral', value: formatBRL(totais.total), color: [6, 95, 70] as [number, number, number], bg: [209, 250, 229] as [number, number, number] },
         { label: 'Quantidade de Parcelas', value: String(totais.qtd), color: [15, 23, 42] as [number, number, number] },
-        { label: 'Pago', value: formatBRL(totais.pago), color: [22, 163, 74] as [number, number, number], bg: [220, 252, 231] as [number, number, number] },
-        { label: 'A receber', value: formatBRL(totais.aReceber), color: [100, 116, 139] as [number, number, number], bg: [241, 245, 249] as [number, number, number] },
-        { label: 'Em revisão', value: formatBRL(totais.emRevisao), color: [202, 138, 4] as [number, number, number], bg: [254, 249, 195] as [number, number, number] },
-        { label: 'Atrasado', value: formatBRL(totais.atrasado), color: [220, 38, 38] as [number, number, number], bg: [254, 226, 226] as [number, number, number] },
+        { label: 'Pago', value: formatBRL(totais.pago), color: [21, 128, 61] as [number, number, number], bg: [220, 252, 231] as [number, number, number] },
+        { label: 'A receber', value: formatBRL(totais.aReceber), color: [51, 65, 85] as [number, number, number], bg: [241, 245, 249] as [number, number, number] },
+        { label: 'Em revisão', value: formatBRL(totais.emRevisao), color: [146, 64, 14] as [number, number, number], bg: [254, 243, 199] as [number, number, number] },
+        { label: 'Atrasado', value: formatBRL(totais.atrasado), color: [185, 28, 28] as [number, number, number], bg: [254, 226, 226] as [number, number, number] },
       ];
       resumoLinhas.forEach((r, i) => {
-        const bg = r.bg || (i % 2 === 0 ? [255, 255, 255] : [248, 250, 252]) as [number, number, number];
+        const bg = r.bg || ((i % 2 === 0 ? [255, 255, 255] : [248, 250, 252]) as [number, number, number]);
         drawCell(margin, y, colW1, rowH, r.label, { bg, bold: true, size: 9 });
         drawCell(margin + colW1, y, colW2, rowH, r.value, { bg, fg: r.color, bold: true, size: 10, align: 'right' });
         y += rowH;
@@ -603,11 +619,8 @@ export function ExportarPrevisaoDialog({ open, onOpenChange, clientes }: Exporta
     if (incluirGrafico) {
       const img = await captureChart();
       if (img) {
-        if (y + 78 > pageHeight - 15) { doc.addPage(); y = 15; }
-        drawCell(margin, y, contentW, 7, modo === 'mes' ? 'GRÁFICO • DISTRIBUIÇÃO POR DIA' : 'GRÁFICO • DISTRIBUIÇÃO POR MÊS', {
-          bg: [30, 41, 59], fg: [255, 255, 255], bold: true, size: 10, border: false,
-        });
-        y += 7;
+        if (y + 85 > pageHeight - 15) { doc.addPage(); y = 15; }
+        drawSectionBanner(modo === 'mes' ? '  GRÁFICO • DISTRIBUIÇÃO POR DIA' : '  GRÁFICO • DISTRIBUIÇÃO POR MÊS');
         // White panel
         doc.setFillColor(255, 255, 255);
         doc.setDrawColor(203, 213, 225);
@@ -621,11 +634,7 @@ export function ExportarPrevisaoDialog({ open, onOpenChange, clientes }: Exporta
     // ===== DETALHES (tabela com look de planilha) =====
     if (incluirDetalhes && parcelasData.length > 0) {
       if (y + 20 > pageHeight - 15) { doc.addPage(); y = 15; }
-
-      drawCell(margin, y, contentW, 7, 'DETALHES DAS PARCELAS', {
-        bg: [30, 41, 59], fg: [255, 255, 255], bold: true, size: 10, border: false,
-      });
-      y += 7;
+      drawSectionBanner('  DETALHES DAS PARCELAS');
 
       autoTable(doc, {
         startY: y,
@@ -634,7 +643,6 @@ export function ExportarPrevisaoDialog({ open, onOpenChange, clientes }: Exporta
         body: parcelasData.map(p => [
           p.data, p.cliente, p.produto, `${p.numeroParcela}/${p.totalParcelas}`, formatBRL(p.valor), p.status,
         ]),
-        foot: [['', '', '', 'TOTAL', formatBRL(totais.total), '']],
         theme: 'grid',
         styles: {
           fontSize: 8,
@@ -650,12 +658,6 @@ export function ExportarPrevisaoDialog({ open, onOpenChange, clientes }: Exporta
           fontSize: 9,
           halign: 'center',
         },
-        footStyles: {
-          fillColor: [30, 41, 59],
-          textColor: 255,
-          fontStyle: 'bold',
-          fontSize: 9,
-        },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         columnStyles: {
           0: { cellWidth: 22, halign: 'center' },
@@ -669,10 +671,10 @@ export function ExportarPrevisaoDialog({ open, onOpenChange, clientes }: Exporta
           if (data.section === 'body' && data.column.index === 5) {
             const status = data.cell.raw as string;
             const colorMap: Record<string, { fg: [number, number, number]; bg: [number, number, number] }> = {
-              'Pago': { fg: [22, 163, 74], bg: [220, 252, 231] },
-              'A receber': { fg: [100, 116, 139], bg: [241, 245, 249] },
-              'Atrasado': { fg: [220, 38, 38], bg: [254, 226, 226] },
-              'Em revisão': { fg: [202, 138, 4], bg: [254, 249, 195] },
+              'Pago': { fg: [21, 128, 61], bg: [220, 252, 231] },
+              'A receber': { fg: [51, 65, 85], bg: [241, 245, 249] },
+              'Atrasado': { fg: [185, 28, 28], bg: [254, 226, 226] },
+              'Em revisão': { fg: [146, 64, 14], bg: [254, 243, 199] },
             };
             const c = colorMap[status];
             if (c) {
@@ -680,11 +682,28 @@ export function ExportarPrevisaoDialog({ open, onOpenChange, clientes }: Exporta
               data.cell.styles.fillColor = c.bg;
             }
           }
-          if (data.section === 'foot' && data.column.index === 4) {
-            data.cell.styles.halign = 'right';
-          }
         },
       });
+
+      // Linha de TOTAL única após toda a tabela (não repete por página)
+      const finalY = (doc as any).lastAutoTable?.finalY ?? y;
+      let ty = finalY;
+      if (ty + 10 > pageHeight - 12) { doc.addPage(); ty = 15; }
+      const totalRowH = 9;
+      // Label area (col 1-4): A4-D4
+      const labelW = 22 + (contentW - 22 - 38 - 14 - 26 - 24) + 38 + 14;
+      const valueW = 26;
+      const restW = 24;
+      drawCell(margin, ty, labelW, totalRowH, 'TOTAL GERAL', {
+        bg: [254, 243, 199], fg: [146, 64, 14], bold: true, size: 11, align: 'right',
+      });
+      drawCell(margin + labelW, ty, valueW, totalRowH, formatBRL(totais.total), {
+        bg: [254, 243, 199], fg: [146, 64, 14], bold: true, size: 11, align: 'right',
+      });
+      drawCell(margin + labelW + valueW, ty, restW, totalRowH, '', {
+        bg: [254, 243, 199], border: true,
+      });
+      y = ty + totalRowH;
     }
 
     // ===== Footer com números de página =====
