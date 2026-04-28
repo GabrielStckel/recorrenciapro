@@ -197,6 +197,7 @@ export function useClientes() {
         parcelas_antes: parcelasAntes,
         parcelas_depois: novasParcelas,
         observacao: observacao || null,
+        registrado_por: user?.email || null,
       });
 
       // Add to payment history if incrementing
