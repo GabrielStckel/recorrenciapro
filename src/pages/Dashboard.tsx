@@ -137,8 +137,10 @@ export default function Dashboard() {
     });
   }, [clientes]);
 
+  // Apenas clientes ATIVOS contam para totais (CANCELADO/PAUSADO/QUITADO ficam de fora)
+  const clientesAtivosParaTotais = clientesFiltrados.filter((c) => c.status_cliente === 'ATIVO');
   const totalRecebido = clientesFiltrados.reduce((acc, c) => acc + c.valor_pago, 0);
-  const totalAReceber = clientesFiltrados.reduce((acc, c) => acc + c.valor_a_receber, 0);
+  const totalAReceber = clientesAtivosParaTotais.reduce((acc, c) => acc + c.valor_a_receber, 0);
   // Include ALL clients with overdue parcels (even those in review)
   const clientesComAtraso = clientesFiltrados.filter((c) => c.parcelas_atrasadas > 0 && c.status_cliente === 'ATIVO');
   const clientesAtrasados = clientesFiltrados.filter((c) => c.status === 'Atrasado');
