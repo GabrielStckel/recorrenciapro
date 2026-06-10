@@ -111,7 +111,10 @@ export function ClientesAtrasados({
                         {hideNames ? '••••••••' : item.cliente.cliente_nome}
                       </p>
                       <p className="text-xs lg:text-sm text-muted-foreground truncate">
-                        {item.cliente.produto} · Parcela {item.numeroParcela}/{item.cliente.total_parcelas}
+                        {item.cliente.produto}
+                      </p>
+                      <p className="text-xs lg:text-sm font-semibold text-foreground/90">
+                        Parcela {item.numeroParcela}/{item.cliente.total_parcelas}
                       </p>
                       <p className="text-[10px] text-destructive/70">
                         Venc. {format(item.dataVencimento, 'dd/MM/yyyy', { locale: ptBR })}
