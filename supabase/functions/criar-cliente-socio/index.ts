@@ -112,6 +112,7 @@ Deno.serve(async (req) => {
         ...cliente_data,
         user_id: socio.id,
         valor_total: valorParceiro,
+        valor_parcela: valorParcelaParceiro,
         created_at: sharedCreatedAt,
       })
       .select()
