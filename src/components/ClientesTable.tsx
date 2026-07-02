@@ -234,7 +234,8 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos, hideV
   };
 
   const handleStatusChange = (clienteId: string, newStatus: StatusCliente) => {
-    updateCliente.mutate({ id: clienteId, status_cliente: newStatus });
+    const previous = clientes.find(c => c.id === clienteId);
+    updateCliente.mutate({ id: clienteId, status_cliente: newStatus, previous });
   };
 
   return (
