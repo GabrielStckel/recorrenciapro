@@ -124,6 +124,25 @@ Deno.serve(async (req) => {
         .eq('id', parceiroClienteId)
         .single()
 
+      // Se for decremento, apagar a linha específica do histórico do sócio
+      // correspondente à parcela desfeita (maior numero_parcela = parcelas_pagas antes).
+      if (parceiroAntes && body.parcelas_pagas < parceiroAntes.parcelas_pagas) {
+        const { data: linhasParcela } = await supabaseAdmin
+          .from('historico_pagamentos')
+          .select('id, data_pagamento')
+          .eq('cliente_id', parceiroClienteId)
+          .eq('numero_parcela', parceiroAntes.parcelas_pagas)
+          .order('data_pagamento', { ascending: false })
+          .limit(1)
+
+        if (linhasParcela && linhasParcela.length > 0) {
+          await supabaseAdmin
+            .from('historico_pagamentos')
+            .delete()
+            .eq('id', linhasParcela[0].id)
+        }
+      }
+
       const { error } = await supabaseAdmin
         .from('clientes_parcelados')
         .update({
