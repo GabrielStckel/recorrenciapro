@@ -210,21 +210,20 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
         && valorParcelaCents === valorParcelaOriginalCents
         && totalParcelasParsed === totalParcelasOriginal;
 
-      const baseData: Record<string, unknown> = {
+      const baseData = {
         cliente_nome: formData.cliente_nome.trim(),
         whatsapp: formData.whatsapp.trim() || '',
         produto: formData.produto.trim(),
+        valor_total: valorInalterado && cliente ? cliente.valor_total : valorTotalCalculado,
+        valor_parcela: valorInalterado && cliente
+          ? (cliente.valor_parcela != null ? Number(cliente.valor_parcela) : valorParcelaFonte)
+          : valorParcelaFonte,
         total_parcelas: totalParcelasParsed,
         parcelas_pagas: parcelasPagasParsed,
         dia_vencimento: diaVencimentoParsed,
         data_inicio: formData.data_inicio,
         status_cliente: formData.status_cliente,
       };
-
-      if (!valorInalterado) {
-        baseData.valor_parcela = valorParcelaFonte;
-        baseData.valor_total = valorTotalCalculado;
-      }
 
       const datesChanged = cliente && (
         diaVencimentoParsed !== cliente.dia_vencimento ||
