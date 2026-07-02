@@ -127,6 +127,8 @@ Deno.serve(async (req) => {
 
       // Create client in partner's account with proportional value
       const valorParceiro = cliente.valor_total * (percentual_parceiro / 100)
+      const totalParcelasNum = Number(cliente.total_parcelas) || 1
+      const valorParcelaParceiro = Math.round((valorParceiro / totalParcelasNum) * 100) / 100
       const { data: novoCiente, error: insertError } = await supabaseAdmin
         .from('clientes_parcelados')
         .insert({
@@ -135,6 +137,7 @@ Deno.serve(async (req) => {
           whatsapp: cliente.whatsapp,
           produto: cliente.produto,
           valor_total: valorParceiro,
+          valor_parcela: valorParcelaParceiro,
           total_parcelas: cliente.total_parcelas,
           parcelas_pagas: cliente.parcelas_pagas,
           data_inicio: cliente.data_inicio,
@@ -158,9 +161,11 @@ Deno.serve(async (req) => {
 
     // Update user's client value to their percentage
     const valorUser = cliente.valor_total * (percentual_user / 100)
+    const totalParcelasUserNum = Number(cliente.total_parcelas) || 1
+    const valorParcelaUser = Math.round((valorUser / totalParcelasUserNum) * 100) / 100
     await supabaseAdmin
       .from('clientes_parcelados')
-      .update({ valor_total: valorUser })
+      .update({ valor_total: valorUser, valor_parcela: valorParcelaUser })
       .eq('id', cliente_id)
 
     // Create link
