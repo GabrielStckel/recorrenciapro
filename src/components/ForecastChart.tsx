@@ -136,7 +136,7 @@ export function ForecastChart({ clientes, hideValues = false }: ForecastChartPro
           } else if (isHoje) {
             // Today and not paid yet = GRAY (pending for today)
             dias[diaIndex].valorHojePendente += valorParcela;
-          } else if (cliente.em_revisao) {
+          } else if (cliente.em_revisao_efetivo) {
             // In review = YELLOW (warning)
             dias[diaIndex].valorEmRevisao += valorParcela;
           } else {
