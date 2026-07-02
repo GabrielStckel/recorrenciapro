@@ -64,6 +64,9 @@ Deno.serve(async (req) => {
     const valorUser = cliente_data.valor_total
     // Partner's valor_total comes from frontend calculation or fallback
     const valorParceiro = valor_total_parceiro || Math.round(cliente_data.valor_total * (percentual_parceiro / percentual_user) * 100) / 100
+    const totalParcelasNum = Number(cliente_data.total_parcelas) || 1
+    const valorParcelaUser = Math.round((valorUser / totalParcelasNum) * 100) / 100
+    const valorParcelaParceiro = Math.round((valorParceiro / totalParcelasNum) * 100) / 100
 
     // Create client for current user
     const sharedCreatedAt = new Date().toISOString()
@@ -73,6 +76,7 @@ Deno.serve(async (req) => {
         ...cliente_data,
         user_id: user.id,
         valor_total: valorUser,
+        valor_parcela: valorParcelaUser,
         created_at: sharedCreatedAt,
       })
       .select()
@@ -108,6 +112,7 @@ Deno.serve(async (req) => {
         ...cliente_data,
         user_id: socio.id,
         valor_total: valorParceiro,
+        valor_parcela: valorParcelaParceiro,
         created_at: sharedCreatedAt,
       })
       .select()

@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
       // Buscar parcelas atuais do parceiro para registrar movimento
       const { data: parceiroAntes } = await supabaseAdmin
         .from('clientes_parcelados')
-        .select('parcelas_pagas, valor_total, total_parcelas')
+        .select('parcelas_pagas, valor_total, valor_parcela, total_parcelas')
         .eq('id', parceiroClienteId)
         .single()
 
@@ -104,7 +104,9 @@ Deno.serve(async (req) => {
 
           // Histórico de pagamento espelhado quando incrementa
           if (delta > 0) {
-            const valorParcela = parceiroAntes.valor_total / parceiroAntes.total_parcelas
+            const valorParcela = parceiroAntes.valor_parcela != null
+              ? Number(parceiroAntes.valor_parcela)
+              : parceiroAntes.valor_total / parceiroAntes.total_parcelas
             await supabaseAdmin.from('historico_pagamentos').insert({
               cliente_id: parceiroClienteId,
               valor_pago: valorParcela,

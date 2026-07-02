@@ -32,6 +32,7 @@ export type Database = {
           updated_at: string
           user_id: string
           valor_pago_parcial: number | null
+          valor_parcela: number | null
           valor_total: number
           whatsapp: string | null
         }
@@ -52,6 +53,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           valor_pago_parcial?: number | null
+          valor_parcela?: number | null
           valor_total: number
           whatsapp?: string | null
         }
@@ -72,6 +74,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           valor_pago_parcial?: number | null
+          valor_parcela?: number | null
           valor_total?: number
           whatsapp?: string | null
         }

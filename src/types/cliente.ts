@@ -9,6 +9,7 @@ export interface Cliente {
   whatsapp: string | null;
   produto: string;
   valor_total: number;
+  valor_parcela: number | null;
   total_parcelas: number;
   parcelas_pagas: number;
   data_inicio: string;
@@ -64,10 +65,13 @@ function parseDateOnlyISO(dateStr: string): Date {
 }
 
 export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
-  const valor_parcela = cliente.valor_total / cliente.total_parcelas;
+  const valor_parcela = cliente.valor_parcela != null
+    ? Number(cliente.valor_parcela)
+    : (cliente.total_parcelas > 0 ? cliente.valor_total / cliente.total_parcelas : 0);
+  const valor_total_efetivo = valor_parcela * cliente.total_parcelas;
   const parcelas_pendentes = cliente.total_parcelas - cliente.parcelas_pagas;
   const valor_pago = valor_parcela * cliente.parcelas_pagas;
-  const valor_a_receber = cliente.valor_total - valor_pago;
+  const valor_a_receber = valor_total_efetivo - valor_pago;
 
   const agora = new Date();
   // "hoje" sem horário para comparar com vencimentos (que são meia-noite local)
