@@ -44,6 +44,7 @@ export interface ClienteCalculado extends Cliente {
   parcelas_atrasadas: number;
   primeira_data_vencimento: Date | null;
   data_vencimento_mes_atual: Date;
+  em_revisao_efetivo: boolean;
 }
 
 // Função auxiliar para obter o último dia do mês
