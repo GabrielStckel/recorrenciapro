@@ -214,10 +214,10 @@ export function ClientesTable({ clientes, onEdit, onHistory, onMovimentos, hideV
     }
   };
 
-  const handlePinConfirm = (pin: string) => {
+  const handlePinConfirm = async (pin: string) => {
     if (!pendingAction) return;
 
-    if (verifyPin(pin)) {
+    if (await verifyPin(pin)) {
       registrarPagamento.mutate(pendingAction);
       setPinDialogOpen(false);
       setPendingAction(null);
