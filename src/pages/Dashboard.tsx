@@ -22,7 +22,7 @@ import {
 import { Button } from '@/components/ui/button';
 
 export default function Dashboard() {
-  const { clientes, isLoading, entrarEmRevisao, sairDeRevisao } = useClientes();
+  const { clientes, isLoading, entrarEmRevisao } = useClientes();
   const queryClient = useQueryClient();
   const [selectedProduto, setSelectedProduto] = useState<string>('Todos');
   const { hideValues, toggleHideValues } = useHideValues();
