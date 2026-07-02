@@ -197,14 +197,23 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
         return;
       }
 
-      // Calculate valor_total from valor_parcela * total_parcelas
-      const valorTotalCalculado = Math.round(valorParcelaParsed * totalParcelasParsed * 100) / 100;
+      // valor_parcela é a fonte da verdade. valor_total é derivado apenas para compat.
+      const valorParcelaCents = Math.round(valorParcelaParsed * 100);
+      const valorParcelaFonte = valorParcelaCents / 100;
+      const valorTotalCalculado = Math.round(valorParcelaCents * totalParcelasParsed) / 100;
 
-      const baseData = {
+      // Se estamos editando e o usuário NÃO mexeu no valor da parcela nem no total de parcelas,
+      // não enviamos valor_parcela nem valor_total no update — preserva 100% os valores do banco.
+      const valorInalterado = cliente != null
+        && valorParcelaOriginalCents != null
+        && totalParcelasOriginal != null
+        && valorParcelaCents === valorParcelaOriginalCents
+        && totalParcelasParsed === totalParcelasOriginal;
+
+      const baseData: Record<string, unknown> = {
         cliente_nome: formData.cliente_nome.trim(),
         whatsapp: formData.whatsapp.trim() || '',
         produto: formData.produto.trim(),
-        valor_total: valorTotalCalculado,
         total_parcelas: totalParcelasParsed,
         parcelas_pagas: parcelasPagasParsed,
         dia_vencimento: diaVencimentoParsed,
@@ -212,8 +221,13 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
         status_cliente: formData.status_cliente,
       };
 
+      if (!valorInalterado) {
+        baseData.valor_parcela = valorParcelaFonte;
+        baseData.valor_total = valorTotalCalculado;
+      }
+
       const datesChanged = cliente && (
-        diaVencimentoParsed !== cliente.dia_vencimento || 
+        diaVencimentoParsed !== cliente.dia_vencimento ||
         formData.data_inicio !== cliente.data_inicio
       );
 
