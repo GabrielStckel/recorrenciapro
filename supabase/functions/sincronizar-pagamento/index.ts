@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { currentMonthSaoPaulo } from '../_shared/date-sp.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
