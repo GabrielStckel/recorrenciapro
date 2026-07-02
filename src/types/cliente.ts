@@ -44,6 +44,7 @@ export interface ClienteCalculado extends Cliente {
   parcelas_atrasadas: number;
   primeira_data_vencimento: Date | null;
   data_vencimento_mes_atual: Date;
+  em_revisao_efetivo: boolean;
 }
 
 // Função auxiliar para obter o último dia do mês
@@ -97,6 +98,7 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
   let dias_em_atraso = 0;
   let parcelas_atrasadas = 0;
   let primeira_data_vencimento: Date | null = null;
+  let em_revisao_efetivo = false;
 
   // Só calcula status de pagamento para clientes ATIVOS com parcelas pendentes
   if (parcelas_pendentes > 0 && cliente.status_cliente === 'ATIVO') {
@@ -146,7 +148,6 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
     }
 
     // "Não pagou" só é válido se o vencimento deste mês já passou
-    // (se o vencimento foi alterado para o futuro, o flag anterior não se aplica)
     const vencimentoMesAtualJaPassou = hoje.getTime() > dataVencimentoMesAtual.getTime();
     const foiMarcadoNaoPagouValido = foiMarcadoNaoPagouEsteMes && vencimentoMesAtualJaPassou;
 
@@ -155,15 +156,23 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
     // 2. Foi marcado como "não pagou" este mês E vencimento já passou E não pagou
     const deveSerAtrasado = estaAtrasado || (foiMarcadoNaoPagouValido && !pagouEsteMes);
 
-    // Calcular parcelas atrasadas e dias em atraso
+    // Revisão COMPUTADA: mesmo antes do back-fill gravar em_revisao=true no banco,
+    // considera-se em revisão quando o vencimento do mês passou, não houve pagamento
+    // este mês e o usuário AINDA NÃO clicou "Não pagou" para o mês corrente.
+    const deveEstarEmRevisaoComputado =
+      vencimentoMesAtualJaPassou &&
+      !pagouEsteMes &&
+      !foiMarcadoNaoPagouEsteMes;
+
+    em_revisao_efetivo = cliente.em_revisao || deveEstarEmRevisaoComputado;
+
+    // Calcular parcelas atrasadas e dias em atraso (métricas internas)
     if (deveSerAtrasado) {
       parcelas_atrasadas = Math.max(0, parcelasQueDeveriamEstarPagas - cliente.parcelas_pagas);
-      // Se foi marcado como não pagou mas matematicamente não está atrasado, conta como 1
       if (parcelas_atrasadas === 0 && foiMarcadoNaoPagouValido && !pagouEsteMes) {
         parcelas_atrasadas = 1;
       }
 
-      // Dias em atraso: calculado a partir da parcela mais antiga não paga
       const parcelaAtrasada = cliente.parcelas_pagas + 1;
       const mesesAposInicio = parcelaAtrasada - 1;
       const dataVencimentoAtrasada = getDataVencimentoNoMes(
@@ -177,11 +186,14 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
       );
     }
 
-    // Revisão e atraso são estados mutuamente exclusivos na exibição.
-    // Se o cliente está em_revisao, o status é sempre 'Em revisão' — a saída
-    // só ocorre pelos botões "Pagou" / "Não pagou".
-    if (cliente.em_revisao) {
+    // Revisão e atraso são mutuamente exclusivos. Se o cliente está em revisão
+    // (gravada ou computada), o status é 'Em revisão' — a saída só ocorre pelos
+    // botões "Pagou" / "Não pagou". Nesse caso zeramos parcelas_atrasadas/dias
+    // para não vazarem em KPIs e na lista de atrasados.
+    if (em_revisao_efetivo) {
       status = 'Em revisão';
+      parcelas_atrasadas = 0;
+      dias_em_atraso = 0;
     } else if (deveSerAtrasado) {
       status = 'Atrasado';
     }
@@ -198,6 +210,7 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
     parcelas_atrasadas,
     primeira_data_vencimento: primeira_data_vencimento,
     data_vencimento_mes_atual: dataVencimentoMesAtual,
+    em_revisao_efetivo,
   };
 }
 
@@ -223,7 +236,7 @@ export function expandirParcelasAtrasadas(clientes: ClienteCalculado[]): Parcela
 
   for (const cliente of clientes) {
     // Include clients with overdue parcels regardless of review status
-    if (cliente.em_revisao) continue;
+    if (cliente.em_revisao_efetivo) continue;
     if (cliente.parcelas_atrasadas <= 0 || !cliente.primeira_data_vencimento || cliente.status_cliente !== 'ATIVO') continue;
 
     for (let i = 0; i < cliente.parcelas_atrasadas; i++) {

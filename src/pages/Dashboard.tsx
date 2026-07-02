@@ -132,9 +132,9 @@ export default function Dashboard() {
   const totalRecebido = clientesFiltrados.reduce((acc, c) => acc + c.valor_pago, 0);
   const totalAReceber = clientesAtivosParaTotais.reduce((acc, c) => acc + c.valor_a_receber, 0);
   // Include ALL clients with overdue parcels (even those in review)
-  const clientesComAtraso = clientesFiltrados.filter((c) => c.parcelas_atrasadas > 0 && c.status_cliente === 'ATIVO' && !c.em_revisao);
+  const clientesComAtraso = clientesFiltrados.filter((c) => c.parcelas_atrasadas > 0 && c.status_cliente === 'ATIVO' && !c.em_revisao_efetivo);
   const clientesAtrasados = clientesFiltrados.filter((c) => c.status === 'Atrasado');
-  const clientesEmRevisao = clientesFiltrados.filter((c) => c.em_revisao && c.status_cliente === 'ATIVO');
+  const clientesEmRevisao = clientesFiltrados.filter((c) => c.em_revisao_efetivo && c.status_cliente === 'ATIVO');
   const totalParcelasAtrasadas = clientesComAtraso.reduce((acc, c) => acc + c.parcelas_atrasadas, 0);
   const valorEmAtraso = clientesComAtraso.reduce((acc, c) => acc + c.valor_parcela * c.parcelas_atrasadas, 0);
 

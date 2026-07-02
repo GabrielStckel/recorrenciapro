@@ -93,7 +93,7 @@ export function ExportarPrevisaoDialog({ open, onOpenChange, clientes }: Exporta
           status = 'Pago';
         } else if (due > hojeData) {
           status = 'A receber';
-        } else if (cliente.em_revisao) {
+        } else if (cliente.em_revisao_efetivo) {
           status = 'Em revisão';
         } else {
           status = 'Atrasado';
