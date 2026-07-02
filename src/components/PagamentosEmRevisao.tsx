@@ -44,8 +44,8 @@ export function PagamentosEmRevisao({ clientes }: PagamentosEmRevisaoProps) {
     }
   };
 
-  const handlePinConfirm = (pin: string) => {
-    if (verifyPin(pin)) {
+  const handlePinConfirm = async (pin: string) => {
+    if (await verifyPin(pin)) {
       setPinDialogOpen(false);
       if (pendingClienteId) {
         confirmarPagamentoRevisao.mutate({ clienteId: pendingClienteId });

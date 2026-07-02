@@ -367,6 +367,9 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      set_payment_pin: { Args: { _pin: string }; Returns: undefined }
+      user_has_payment_pin: { Args: never; Returns: boolean }
+      verify_payment_pin: { Args: { _pin: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
