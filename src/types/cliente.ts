@@ -177,16 +177,10 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
       );
     }
 
-    // Prioridade: em revisão (somente se realmente faz sentido)
-    // Se o cliente está marcado em_revisao mas matematicamente está em dia
-    // (parcelas pagas cobrem o que deveria estar pago e o vencimento do mês atual
-    // ainda não chegou OU já pagou neste mês), não deve aparecer como "Em revisão"
-    const vencimentoMesAtualJaPassouAgora = hoje.getTime() > dataVencimentoMesAtual.getTime();
-    const revisaoAindaValida =
-      cliente.em_revisao &&
-      (estaAtrasado || (vencimentoMesAtualJaPassouAgora && !pagouEsteMes));
-
-    if (revisaoAindaValida) {
+    // Revisão e atraso são estados mutuamente exclusivos na exibição.
+    // Se o cliente está em_revisao, o status é sempre 'Em revisão' — a saída
+    // só ocorre pelos botões "Pagou" / "Não pagou".
+    if (cliente.em_revisao) {
       status = 'Em revisão';
     } else if (deveSerAtrasado) {
       status = 'Atrasado';
@@ -229,6 +223,7 @@ export function expandirParcelasAtrasadas(clientes: ClienteCalculado[]): Parcela
 
   for (const cliente of clientes) {
     // Include clients with overdue parcels regardless of review status
+    if (cliente.em_revisao) continue;
     if (cliente.parcelas_atrasadas <= 0 || !cliente.primeira_data_vencimento || cliente.status_cliente !== 'ATIVO') continue;
 
     for (let i = 0; i < cliente.parcelas_atrasadas; i++) {

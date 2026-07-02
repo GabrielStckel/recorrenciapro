@@ -22,7 +22,7 @@ import {
 import { Button } from '@/components/ui/button';
 
 export default function Dashboard() {
-  const { clientes, isLoading, entrarEmRevisao, sairDeRevisao } = useClientes();
+  const { clientes, isLoading, entrarEmRevisao } = useClientes();
   const queryClient = useQueryClient();
   const [selectedProduto, setSelectedProduto] = useState<string>('Todos');
   const { hideValues, toggleHideValues } = useHideValues();
@@ -76,12 +76,9 @@ export default function Dashboard() {
 
   // Track which clients we've already sent to review (to avoid repeated mutations)
   const clientesRevisadosRef = useRef<Set<string>>(new Set());
-  const clientesLimposRef = useRef<Set<string>>(new Set());
   // Stable references to avoid re-running effect
   const entrarEmRevisaoMutate = useRef(entrarEmRevisao.mutate);
   entrarEmRevisaoMutate.current = entrarEmRevisao.mutate;
-  const sairDeRevisaoMutate = useRef(sairDeRevisao.mutate);
-  sairDeRevisaoMutate.current = sairDeRevisao.mutate;
 
   // Auto-enter / auto-exit review state for clients (run only once per client per session)
   useEffect(() => {
@@ -110,16 +107,9 @@ export default function Dashboard() {
       // (ou seja, dia seguinte em diante). No próprio dia do vencimento ainda não está atrasado.
       const vencimentoMesAtualPassou = hojeMidnight.getTime() > cliente.data_vencimento_mes_atual.getTime();
 
-      // AUTO-EXIT: cliente está em_revisao mas matematicamente está em dia
-      if (cliente.em_revisao) {
-        const naoEstaRealmenteAtrasado = cliente.parcelas_atrasadas === 0;
-        const naoPrecisaRevisao = !vencimentoMesAtualPassou || pagouNesteMes;
-        if (naoEstaRealmenteAtrasado && naoPrecisaRevisao && !clientesLimposRef.current.has(cliente.id)) {
-          clientesLimposRef.current.add(cliente.id);
-          sairDeRevisaoMutate.current({ clienteId: cliente.id });
-        }
-        return;
-      }
+      // Uma vez em_revisao, só sai pelos botões "Pagou" / "Não pagou" — sem auto-saída.
+      if (cliente.em_revisao) return;
+
 
       // AUTO-ENTER review:
       if (cliente.mes_referencia_revisao === mesAtual) return;
@@ -142,7 +132,7 @@ export default function Dashboard() {
   const totalRecebido = clientesFiltrados.reduce((acc, c) => acc + c.valor_pago, 0);
   const totalAReceber = clientesAtivosParaTotais.reduce((acc, c) => acc + c.valor_a_receber, 0);
   // Include ALL clients with overdue parcels (even those in review)
-  const clientesComAtraso = clientesFiltrados.filter((c) => c.parcelas_atrasadas > 0 && c.status_cliente === 'ATIVO');
+  const clientesComAtraso = clientesFiltrados.filter((c) => c.parcelas_atrasadas > 0 && c.status_cliente === 'ATIVO' && !c.em_revisao);
   const clientesAtrasados = clientesFiltrados.filter((c) => c.status === 'Atrasado');
   const clientesEmRevisao = clientesFiltrados.filter((c) => c.em_revisao && c.status_cliente === 'ATIVO');
   const totalParcelasAtrasadas = clientesComAtraso.reduce((acc, c) => acc + c.parcelas_atrasadas, 0);
