@@ -1,46 +1,52 @@
 ## Objetivo
-Corrigir o bug onde desfazer um pagamento (incremento negativo) deixa o registro em `historico_pagamentos` intacto — inflando faturamento e histórico — tanto localmente quanto no espelho do sócio. Também corrigir a `data_ultimo_pagamento` para refletir a data real do pagamento remanescente, não uma subtração de 1 mês.
+Corrigir 3 bugs na sincronização de edição entre contas vinculadas, sem alterar dados de clientes fora dos campos explicitamente citados.
 
-Nenhum dado de cliente é apagado. A única remoção permitida é a linha específica de `historico_pagamentos` correspondente à parcela desfeita.
+## Descoberta importante
+`clientes_vinculados` **já tem** as colunas `percentual_user` e `percentual_parceiro` e todos os 7 vínculos estão com valores preenchidos. **Nenhuma migração é necessária.**
 
 ## Arquivos afetados
 
-### 1. `src/hooks/useClientes.tsx` — `registrarPagamento` (linhas ~104-230)
+### 1. `src/hooks/useClientes.tsx` — `updateCliente` (linhas ~59-81)
 
-**Mudança A — apagar a linha de histórico da parcela desfeita (incremento < 0):**
-- Antes do `update` do cliente, quando `incremento < 0 && cliente.parcelas_pagas > 0`:
-  - Buscar em `historico_pagamentos` a linha com `cliente_id = clienteId` e `numero_parcela = cliente.parcelas_pagas` (o maior número, correspondente à parcela mais recente).
-  - Se houver mais de uma (defensivo), pegar a mais recente por `data_pagamento`/`created_at` e apagar apenas essa `id`.
-  - `DELETE FROM historico_pagamentos WHERE id = <id>` — remoção pontual, não em massa.
-  - Se não existir linha, seguir sem erro (idempotente).
+**Enviar ao sync somente o diff, e nunca campos de pagamento/revisão.**
 
-**Mudança B — recalcular `data_ultimo_pagamento` a partir do histórico real:**
-- Substituir o bloco atual (que usa `subMonthsClampedISO` no cliente atual) por: após deletar a linha acima, buscar em `historico_pagamentos` a linha remanescente com maior `numero_parcela` para aquele cliente.
-  - Se existir → `novaDataUltimoPagamento = data_pagamento` (formatada como `YYYY-MM-DD` local).
-  - Se não existir (ou `novasParcelas === 0`) → `novaDataUltimoPagamento = null`.
-- Remover o helper `subMonthsClampedISO` do fluxo de decremento (pode ficar no arquivo se usado em outro lugar; verificar e limpar se órfão).
+- Aceitar um parâmetro extra opcional `previous?: Cliente` (o cliente antes do update, vindo do ClienteModal / ClientesTable) para calcular o diff. Se não vier, buscar via `select` antes do update.
+- Após atualizar, montar `syncPayload` contendo apenas as chaves cujo valor mudou (`updates[k] !== previous[k]`) e apenas entre os campos permitidos:
+  - `cliente_nome, whatsapp, produto, total_parcelas, valor_parcela, valor_total, dia_vencimento, data_inicio, status_cliente`
+- Bloqueio explícito (nunca enviados, mesmo se vierem em `updates`):
+  - `parcelas_pagas, data_ultimo_pagamento, em_revisao, mes_referencia_revisao, valor_pago_parcial, observacao_revisao`
+- Se `syncPayload` estiver vazio, não chamar `sincronizarParceiro`.
+- Nas chamadas atuais (`ClienteModal.handleSubmit`, `ClientesTable.handleStatusChange`) passar `previous: cliente` para evitar o `select` extra.
 
-**Mudança C — propagar a data correta ao sócio:**
-- A chamada `sincronizarParceiro(..., 'pagamento_removido', { parcelas_pagas, data_ultimo_pagamento: novaDataUltimoPagamento })` já existe; apenas passará o valor recalculado corretamente.
+### 2. `supabase/functions/sincronizar-pagamento/index.ts` — action `cliente_editado` (linhas ~191-214)
 
-### 2. `supabase/functions/sincronizar-pagamento/index.ts` — action `pagamento_removido` (linhas ~120-149)
+**Recalcular valores proporcionalmente e nunca sobrescrever estado de pagamento/revisão do sócio.**
 
-**Mudança D — apagar a linha correspondente no espelho do sócio:**
-- Antes do `update`, dentro do bloco `pagamento_removido`:
-  - Ler `parceiroAntes.parcelas_pagas` (já lido).
-  - Se `body.parcelas_pagas < parceiroAntes.parcelas_pagas` (decremento):
-    - Buscar em `historico_pagamentos` a linha com `cliente_id = parceiroClienteId` e `numero_parcela = parceiroAntes.parcelas_pagas` (mais recente por `data_pagamento` se houver múltiplas).
-    - Apagar apenas essa `id`. Idempotente se não existir.
-- Manter o `update` de `parcelas_pagas` e `data_ultimo_pagamento` como está (a data já virá recalculada do cliente principal via body).
-- Manter o insert em `movimentos_parcelas` como está.
+- Remover do whitelist: `parcelas_pagas, data_ultimo_pagamento, em_revisao, mes_referencia_revisao, valor_pago_parcial, observacao_revisao`. Continuar aceitando: `cliente_nome, whatsapp, produto, total_parcelas, dia_vencimento, data_inicio, status_cliente`.
+- Ler o vínculo com `percentual_user` e `percentual_parceiro` (já disponível — `link` já é selecionado com `*`). Identificar qual lado é o remetente e qual é o sócio (`percSender`, `percReceiver`).
+- Se `body.valor_parcela !== undefined` **ou** `body.total_parcelas !== undefined`:
+  - Buscar do sócio (`supabaseAdmin.from('clientes_parcelados').select('valor_parcela, valor_total, total_parcelas').eq('id', parceiroClienteId).single()`) para ter os valores atuais.
+  - Determinar `totalParcelasFinal`:
+    - Se `body.total_parcelas !== undefined` → usa `body.total_parcelas` (mesma quantidade dos dois lados).
+    - Caso contrário mantém o do sócio.
+  - Determinar `valorParcelaContratoTotal` (parcela do contrato inteiro, 100%):
+    - Se `body.valor_parcela !== undefined` → o remetente enviou a parcela DELE, então `contratoParcela = body.valor_parcela / (percSender/100)`.
+    - Caso contrário derivar do sócio: `contratoParcela = socio.valor_parcela / (percReceiver/100)` (fallback: `socio.valor_total / socio.total_parcelas / (percReceiver/100)`).
+  - `syncFields.valor_parcela = round2(contratoParcela * (percReceiver/100))`
+  - `syncFields.valor_total = round2(syncFields.valor_parcela * totalParcelasFinal)`
+  - `syncFields.total_parcelas = totalParcelasFinal` (se veio no body).
+- `round2(x) = Math.round(x * 100) / 100`.
+- Se nenhum campo terminar no `syncFields`, não fazer update.
+
+### 3. `src/components/ClienteModal.tsx` (linha ~253) e `src/components/ClientesTable.tsx` (linha ~237)
+
+- Passar `previous: cliente` no `updateCliente.mutateAsync({ id, ...data, previous: cliente })` — pequena assinatura extra tratada em (1) para não sair no update de banco (extraída antes do `.update`).
 
 ## Detalhes técnicos
-
-- Ordem no cliente principal: (1) buscar cliente, (2) se decremento, apagar linha de histórico da maior `numero_parcela`, (3) recalcular `novaDataUltimoPagamento` a partir do histórico remanescente, (4) update do cliente, (5) registrar movimento DECREMENTO, (6) `sincronizarParceiro`.
-- Nada de `DELETE` sem `id` específico; nada tocando `clientes_parcelados`, `movimentos_parcelas` ou linhas de outros números de parcela.
-- Sem migração — apenas código.
-- Comportamento de incremento (`> 0`) permanece inalterado.
+- Percentuais são NUMERIC 0-100 (soma = 100). Divisão por zero é evitada com fallback `>0`.
+- `updateCliente` continua gravando no banco do remetente exatamente o que já grava hoje — apenas a chamada `sincronizarParceiro` é filtrada.
+- Sem migração; sem toque em `movimentos_parcelas` ou `historico_pagamentos`.
 
 ## Fora de escopo
-- `registrarPagamentoParcial` e demais fluxos.
-- Qualquer alteração em `movimentos_parcelas` histórico já existente.
+- Fluxos de pagamento (`pagamento_confirmado`/`pagamento_removido`/`pagamento_parcial`) e `entrou_revisao`/`marcado_atrasado` continuam como estão.
+- Criação de cliente com sócio (`criar-cliente-socio`).

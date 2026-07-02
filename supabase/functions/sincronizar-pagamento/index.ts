@@ -189,21 +189,56 @@ Deno.serve(async (req) => {
       updateError = error
 
     } else if (action === 'cliente_editado') {
-      // Sync editable fields (excluding valor_total which is % based)
+      // Sync only whitelisted editable fields. NEVER payment/review state.
       const syncFields: Record<string, unknown> = {}
       if (body.cliente_nome !== undefined) syncFields.cliente_nome = body.cliente_nome
       if (body.whatsapp !== undefined) syncFields.whatsapp = body.whatsapp
       if (body.produto !== undefined) syncFields.produto = body.produto
-      if (body.total_parcelas !== undefined) syncFields.total_parcelas = body.total_parcelas
-      if (body.parcelas_pagas !== undefined) syncFields.parcelas_pagas = body.parcelas_pagas
       if (body.dia_vencimento !== undefined) syncFields.dia_vencimento = body.dia_vencimento
       if (body.data_inicio !== undefined) syncFields.data_inicio = body.data_inicio
-      if (body.data_ultimo_pagamento !== undefined) syncFields.data_ultimo_pagamento = body.data_ultimo_pagamento
-      if (body.em_revisao !== undefined) syncFields.em_revisao = body.em_revisao
-      if (body.mes_referencia_revisao !== undefined) syncFields.mes_referencia_revisao = body.mes_referencia_revisao
-      if (body.valor_pago_parcial !== undefined) syncFields.valor_pago_parcial = body.valor_pago_parcial
-      if (body.observacao_revisao !== undefined) syncFields.observacao_revisao = body.observacao_revisao
       if (body.status_cliente !== undefined) syncFields.status_cliente = body.status_cliente
+
+      // Recompute financial values proportionally when valor_parcela or total_parcelas changed
+      const valorMudou = body.valor_parcela !== undefined
+      const totalMudou = body.total_parcelas !== undefined
+
+      if (valorMudou || totalMudou) {
+        const senderIsCliente = link.cliente_id === cliente_id
+        const percSender = Number(senderIsCliente ? link.percentual_user : link.percentual_parceiro) || 0
+        const percReceiver = Number(senderIsCliente ? link.percentual_parceiro : link.percentual_user) || 0
+
+        const { data: socio } = await supabaseAdmin
+          .from('clientes_parcelados')
+          .select('valor_parcela, valor_total, total_parcelas')
+          .eq('id', parceiroClienteId)
+          .single()
+
+        const round2 = (x: number) => Math.round(x * 100) / 100
+
+        // Derive full-contract (100%) installment
+        let contratoParcela = 0
+        if (valorMudou && percSender > 0) {
+          contratoParcela = Number(body.valor_parcela) / (percSender / 100)
+        } else if (socio && percReceiver > 0) {
+          const socioParcela = socio.valor_parcela != null
+            ? Number(socio.valor_parcela)
+            : (socio.total_parcelas ? Number(socio.valor_total) / Number(socio.total_parcelas) : 0)
+          contratoParcela = socioParcela / (percReceiver / 100)
+        }
+
+        const totalParcelasFinal = totalMudou
+          ? Number(body.total_parcelas)
+          : (socio ? Number(socio.total_parcelas) : 0)
+
+        if (contratoParcela > 0 && percReceiver > 0) {
+          const novaParcelaSocio = round2(contratoParcela * (percReceiver / 100))
+          syncFields.valor_parcela = novaParcelaSocio
+          if (totalParcelasFinal > 0) {
+            syncFields.valor_total = round2(novaParcelaSocio * totalParcelasFinal)
+          }
+        }
+        if (totalMudou) syncFields.total_parcelas = Number(body.total_parcelas)
+      }
 
       if (Object.keys(syncFields).length > 0) {
         const { error } = await supabaseAdmin

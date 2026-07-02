@@ -250,7 +250,7 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
 
       if (cliente) {
         // Edit mode - no partner creation
-        await updateCliente.mutateAsync({ id: cliente.id, ...data });
+        await updateCliente.mutateAsync({ id: cliente.id, ...data, previous: cliente });
         toast({ title: 'Cliente atualizado com sucesso!' });
       } else if (comSocio) {
         // New client with partner
