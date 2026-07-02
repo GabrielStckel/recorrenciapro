@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
       // Buscar parcelas atuais do parceiro para registrar movimento
       const { data: parceiroAntes } = await supabaseAdmin
         .from('clientes_parcelados')
-        .select('parcelas_pagas, valor_total, total_parcelas')
+        .select('parcelas_pagas, valor_total, valor_parcela, total_parcelas')
         .eq('id', parceiroClienteId)
         .single()
 
