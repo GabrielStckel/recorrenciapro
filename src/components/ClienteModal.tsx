@@ -110,22 +110,30 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
     data_inicio: formatDateOnlyISO(new Date()),
     status_cliente: 'ATIVO' as StatusCliente,
   });
+  // Cents originais para detectar se o usuário realmente mexeu no valor/parcelas
+  const [valorParcelaOriginalCents, setValorParcelaOriginalCents] = useState<number | null>(null);
+  const [totalParcelasOriginal, setTotalParcelasOriginal] = useState<number | null>(null);
 
   useEffect(() => {
     if (cliente) {
-      // Calculate valor_parcela from valor_total / total_parcelas
-      const valorParcela = cliente.total_parcelas > 0 ? cliente.valor_total / cliente.total_parcelas : cliente.valor_total;
+      // Fonte da verdade: valor_parcela do banco. Fallback: valor_total/total_parcelas.
+      const valorParcela = cliente.valor_parcela != null
+        ? Number(cliente.valor_parcela)
+        : (cliente.total_parcelas > 0 ? cliente.valor_total / cliente.total_parcelas : cliente.valor_total);
+      const cents = Math.round(valorParcela * 100);
       setFormData({
         cliente_nome: cliente.cliente_nome,
         whatsapp: cliente.whatsapp || '',
         produto: cliente.produto,
-        valor_parcela: formatCurrencyInput(Math.round(valorParcela * 100)),
+        valor_parcela: formatCurrencyInput(cents),
         total_parcelas: cliente.total_parcelas.toString(),
         parcelas_pagas: cliente.parcelas_pagas.toString(),
         dia_vencimento: cliente.dia_vencimento.toString(),
         data_inicio: cliente.data_inicio,
         status_cliente: cliente.status_cliente || 'ATIVO',
       });
+      setValorParcelaOriginalCents(cents);
+      setTotalParcelasOriginal(cliente.total_parcelas);
       setComSocio(false);
     } else {
       const pVT = prefilledCobranca?.valor_total;
@@ -144,6 +152,8 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
         data_inicio: formatDateOnlyISO(new Date()),
         status_cliente: 'ATIVO',
       });
+      setValorParcelaOriginalCents(null);
+      setTotalParcelasOriginal(null);
       setComSocio(prefilledCobranca?.com_socio || false);
       setEmailSocio(prefilledCobranca?.email_socio || '');
       setPercentualUser(prefilledCobranca?.percentual_user?.toString() || '50');
