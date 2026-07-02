@@ -9,6 +9,7 @@ export interface Cliente {
   whatsapp: string | null;
   produto: string;
   valor_total: number;
+  valor_parcela: number | null;
   total_parcelas: number;
   parcelas_pagas: number;
   data_inicio: string;
