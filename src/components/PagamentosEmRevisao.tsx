@@ -25,7 +25,7 @@ export function PagamentosEmRevisao({ clientes }: PagamentosEmRevisaoProps) {
   const [valorParcial, setValorParcial] = useState('');
   const [observacao, setObservacao] = useState('');
   
-  const emRevisao = clientes.filter((c) => c.em_revisao && c.status_cliente === 'ATIVO');
+  const emRevisao = clientes.filter((c) => c.em_revisao_efetivo && c.status_cliente === 'ATIVO');
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
