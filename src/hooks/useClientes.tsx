@@ -57,18 +57,45 @@ export function useClientes() {
   });
 
   const updateCliente = useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<Cliente> & { id: string }) => {
+    mutationFn: async ({ id, previous, ...updates }: Partial<Cliente> & { id: string; previous?: Cliente }) => {
       const { data, error } = await supabase
         .from('clientes_parcelados')
         .update(updates)
         .eq('id', id)
         .select()
         .single();
-      
+
       if (error) throw error;
 
-      // Sync editable fields to partner (fire-and-forget)
-      sincronizarParceiro(id, 'cliente_editado', updates as Record<string, unknown>);
+      // Build diff-only sync payload; never sync payment/review state fields.
+      const SYNCABLE = [
+        'cliente_nome', 'whatsapp', 'produto', 'total_parcelas',
+        'valor_parcela', 'valor_total', 'dia_vencimento', 'data_inicio',
+        'status_cliente',
+      ] as const;
+
+      let prev = previous;
+      if (!prev) {
+        const { data: prevData } = await supabase
+          .from('clientes_parcelados')
+          .select('*')
+          .eq('id', id)
+          .single();
+        prev = prevData as Cliente | undefined;
+      }
+
+      const syncPayload: Record<string, unknown> = {};
+      for (const key of SYNCABLE) {
+        if (key in updates) {
+          const newVal = (updates as Record<string, unknown>)[key];
+          const oldVal = prev ? (prev as unknown as Record<string, unknown>)[key] : undefined;
+          if (newVal !== oldVal) syncPayload[key] = newVal;
+        }
+      }
+
+      if (Object.keys(syncPayload).length > 0) {
+        sincronizarParceiro(id, 'cliente_editado', syncPayload);
+      }
 
       return data;
     },
