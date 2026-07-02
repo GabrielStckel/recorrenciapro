@@ -332,7 +332,41 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      registrar_pagamento_atomico: {
+        Args: {
+          p_cliente_id: string
+          p_incremento: number
+          p_observacao?: string
+          p_registrado_por?: string
+        }
+        Returns: {
+          cliente_nome: string
+          created_at: string
+          data_inicio: string
+          data_ultimo_pagamento: string | null
+          dia_vencimento: number
+          em_revisao: boolean
+          id: string
+          mes_referencia_revisao: string | null
+          observacao_revisao: string | null
+          parcelas_pagas: number
+          produto: string
+          status_cliente: string
+          total_parcelas: number
+          updated_at: string
+          user_id: string
+          valor_pago_parcial: number | null
+          valor_parcela: number | null
+          valor_total: number
+          whatsapp: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "clientes_parcelados"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       [_ in never]: never
