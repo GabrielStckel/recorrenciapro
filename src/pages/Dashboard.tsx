@@ -76,12 +76,9 @@ export default function Dashboard() {
 
   // Track which clients we've already sent to review (to avoid repeated mutations)
   const clientesRevisadosRef = useRef<Set<string>>(new Set());
-  const clientesLimposRef = useRef<Set<string>>(new Set());
   // Stable references to avoid re-running effect
   const entrarEmRevisaoMutate = useRef(entrarEmRevisao.mutate);
   entrarEmRevisaoMutate.current = entrarEmRevisao.mutate;
-  const sairDeRevisaoMutate = useRef(sairDeRevisao.mutate);
-  sairDeRevisaoMutate.current = sairDeRevisao.mutate;
 
   // Auto-enter / auto-exit review state for clients (run only once per client per session)
   useEffect(() => {
