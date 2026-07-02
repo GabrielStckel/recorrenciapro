@@ -1,52 +1,62 @@
-## Objetivo
-Corrigir 3 bugs na sincronização de edição entre contas vinculadas, sem alterar dados de clientes fora dos campos explicitamente citados.
+## Bugs a corrigir
+1. Edge functions usam `new Date()` sem fuso → `mes_referencia_revisao` e datas erram entre ~21h e 00h ou na virada de mês.
+2. `confirmarPagamentoRevisao` grava `mes_referencia_revisao = mês atual` com `em_revisao = false` — mesma assinatura de "marcado como não pagou". Cliente pago pode virar atrasado se a data for editada depois.
+3. `registrarPagamento` faz read-modify-write em passos separados → cliques concorrentes (usuário + sócio) podem perder/duplicar incremento.
 
-## Descoberta importante
-`clientes_vinculados` **já tem** as colunas `percentual_user` e `percentual_parceiro` e todos os 7 vínculos estão com valores preenchidos. **Nenhuma migração é necessária.**
+## Plano (aditivo, sem mexer em dados existentes)
+
+### 1. Helper de data no fuso America/Sao_Paulo
+Criar arquivo `supabase/functions/_shared/date-sp.ts` (usado via import relativo pelas functions):
+- `nowSaoPauloParts()` usando `Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', ... })` retornando `{ ano, mes, dia }`.
+- `todayISOSaoPaulo()` → `YYYY-MM-DD`.
+- `currentMonthSaoPaulo()` → `YYYY-MM`.
+
+Substituir em:
+- `supabase/functions/sincronizar-pagamento/index.ts` linha 171-172 (action `marcado_atrasado`).
+- `supabase/functions/criar-cliente-socio/index.ts` linha 72 (`sharedCreatedAt`) — trocar por ISO com offset `-03:00` derivado do helper, para o timestamp refletir o "agora" em SP sem quebrar comparações.
+- Auditar restante das functions e trocar qualquer outro `new Date()` remanescente que gere data/mês de negócio.
+
+Nada de novos secrets, nada de migração.
+
+### 2. Padronizar `confirmarPagamentoRevisao`
+Em `src/hooks/useClientes.tsx` (mutation `confirmarPagamentoRevisao`, linhas ~303-416):
+- No update do banco: `mes_referencia_revisao: null` (igual a `registrarPagamento` linha 225).
+- No `onMutate` optimistic (linha ~379): também setar `mes_referencia_revisao: null`.
+- Manter `em_revisao: false`, `valor_pago_parcial: null`, `observacao_revisao: null` como já estão.
+- Não tocar em dados existentes; a mudança só afeta gravações futuras. `calcularDadosCliente` continua compatível com registros antigos que tenham `mes_referencia_revisao` preenchido.
+
+### 3. RPC atômica para incremento/decremento de pagamento
+Migração aditiva (não altera tabelas nem dados):
+
+Criar função `public.registrar_pagamento_atomico(p_cliente_id uuid, p_incremento int, p_observacao text, p_registrado_por text)`:
+- `LANGUAGE plpgsql SECURITY DEFINER SET search_path = public`.
+- Faz `SELECT ... FROM clientes_parcelados WHERE id = p_cliente_id AND user_id = auth.uid() FOR UPDATE` — se não achar, `RAISE EXCEPTION 'not_authorized'` (valida dono).
+- Calcula `novas_parcelas = GREATEST(0, LEAST(total_parcelas, parcelas_pagas + p_incremento))`. Se `novas_parcelas = parcelas_pagas`, retorna sem efeito colateral.
+- Se incremento > 0:
+  - `nova_data = (now() AT TIME ZONE 'America/Sao_Paulo')::date`.
+  - `UPDATE clientes_parcelados SET parcelas_pagas = novas_parcelas, data_ultimo_pagamento = nova_data, em_revisao = false, mes_referencia_revisao = null, valor_pago_parcial = null, observacao_revisao = null`.
+  - `INSERT INTO historico_pagamentos (cliente_id, valor_pago, numero_parcela, registrado_por)` usando `COALESCE(valor_parcela, valor_total / NULLIF(total_parcelas,0))`.
+- Se incremento < 0:
+  - `DELETE FROM historico_pagamentos WHERE cliente_id = p_cliente_id AND numero_parcela = parcelas_pagas` (linha exata da parcela desfeita).
+  - Recalcula `data_ultimo_pagamento` a partir do `MAX(numero_parcela)` remanescente (ou `null`).
+  - `UPDATE clientes_parcelados` apenas com `parcelas_pagas` e `data_ultimo_pagamento` (não mexe em flags de revisão).
+- `INSERT INTO movimentos_parcelas (cliente_id, user_id, tipo, delta_parcelas, parcelas_antes, parcelas_depois, observacao, registrado_por)` com `tipo = CASE WHEN p_incremento > 0 THEN 'INCREMENTO' ELSE 'DECREMENTO' END`.
+- Retorna a linha atualizada de `clientes_parcelados` (TABLE ou row) para o cliente atualizar cache.
+- `GRANT EXECUTE ON FUNCTION ... TO authenticated;`
+
+Em `src/hooks/useClientes.tsx` `registrarPagamento`:
+- Substituir todo o bloco read→calc→update→insert (linhas 156-267) por uma única chamada `supabase.rpc('registrar_pagamento_atomico', { p_cliente_id, p_incremento, p_observacao, p_registrado_por })`.
+- Usar a linha retornada para `calcularDadosCliente` e continuar disparando `sincronizarParceiro(...)` como fire-and-forget (sem mudar contrato do sync).
+- Sem impacto em `registrarPagamentoParcial` nem em `confirmarPagamentoRevisao` (fora do escopo do bug 3).
 
 ## Arquivos afetados
+- **Novo**: `supabase/functions/_shared/date-sp.ts`
+- **Nova migração** (aditiva): função `registrar_pagamento_atomico` + GRANT
+- `supabase/functions/sincronizar-pagamento/index.ts`
+- `supabase/functions/criar-cliente-socio/index.ts`
+- `src/hooks/useClientes.tsx` (`registrarPagamento` e `confirmarPagamentoRevisao`)
 
-### 1. `src/hooks/useClientes.tsx` — `updateCliente` (linhas ~59-81)
-
-**Enviar ao sync somente o diff, e nunca campos de pagamento/revisão.**
-
-- Aceitar um parâmetro extra opcional `previous?: Cliente` (o cliente antes do update, vindo do ClienteModal / ClientesTable) para calcular o diff. Se não vier, buscar via `select` antes do update.
-- Após atualizar, montar `syncPayload` contendo apenas as chaves cujo valor mudou (`updates[k] !== previous[k]`) e apenas entre os campos permitidos:
-  - `cliente_nome, whatsapp, produto, total_parcelas, valor_parcela, valor_total, dia_vencimento, data_inicio, status_cliente`
-- Bloqueio explícito (nunca enviados, mesmo se vierem em `updates`):
-  - `parcelas_pagas, data_ultimo_pagamento, em_revisao, mes_referencia_revisao, valor_pago_parcial, observacao_revisao`
-- Se `syncPayload` estiver vazio, não chamar `sincronizarParceiro`.
-- Nas chamadas atuais (`ClienteModal.handleSubmit`, `ClientesTable.handleStatusChange`) passar `previous: cliente` para evitar o `select` extra.
-
-### 2. `supabase/functions/sincronizar-pagamento/index.ts` — action `cliente_editado` (linhas ~191-214)
-
-**Recalcular valores proporcionalmente e nunca sobrescrever estado de pagamento/revisão do sócio.**
-
-- Remover do whitelist: `parcelas_pagas, data_ultimo_pagamento, em_revisao, mes_referencia_revisao, valor_pago_parcial, observacao_revisao`. Continuar aceitando: `cliente_nome, whatsapp, produto, total_parcelas, dia_vencimento, data_inicio, status_cliente`.
-- Ler o vínculo com `percentual_user` e `percentual_parceiro` (já disponível — `link` já é selecionado com `*`). Identificar qual lado é o remetente e qual é o sócio (`percSender`, `percReceiver`).
-- Se `body.valor_parcela !== undefined` **ou** `body.total_parcelas !== undefined`:
-  - Buscar do sócio (`supabaseAdmin.from('clientes_parcelados').select('valor_parcela, valor_total, total_parcelas').eq('id', parceiroClienteId).single()`) para ter os valores atuais.
-  - Determinar `totalParcelasFinal`:
-    - Se `body.total_parcelas !== undefined` → usa `body.total_parcelas` (mesma quantidade dos dois lados).
-    - Caso contrário mantém o do sócio.
-  - Determinar `valorParcelaContratoTotal` (parcela do contrato inteiro, 100%):
-    - Se `body.valor_parcela !== undefined` → o remetente enviou a parcela DELE, então `contratoParcela = body.valor_parcela / (percSender/100)`.
-    - Caso contrário derivar do sócio: `contratoParcela = socio.valor_parcela / (percReceiver/100)` (fallback: `socio.valor_total / socio.total_parcelas / (percReceiver/100)`).
-  - `syncFields.valor_parcela = round2(contratoParcela * (percReceiver/100))`
-  - `syncFields.valor_total = round2(syncFields.valor_parcela * totalParcelasFinal)`
-  - `syncFields.total_parcelas = totalParcelasFinal` (se veio no body).
-- `round2(x) = Math.round(x * 100) / 100`.
-- Se nenhum campo terminar no `syncFields`, não fazer update.
-
-### 3. `src/components/ClienteModal.tsx` (linha ~253) e `src/components/ClientesTable.tsx` (linha ~237)
-
-- Passar `previous: cliente` no `updateCliente.mutateAsync({ id, ...data, previous: cliente })` — pequena assinatura extra tratada em (1) para não sair no update de banco (extraída antes do `.update`).
-
-## Detalhes técnicos
-- Percentuais são NUMERIC 0-100 (soma = 100). Divisão por zero é evitada com fallback `>0`.
-- `updateCliente` continua gravando no banco do remetente exatamente o que já grava hoje — apenas a chamada `sincronizarParceiro` é filtrada.
-- Sem migração; sem toque em `movimentos_parcelas` ou `historico_pagamentos`.
-
-## Fora de escopo
-- Fluxos de pagamento (`pagamento_confirmado`/`pagamento_removido`/`pagamento_parcial`) e `entrou_revisao`/`marcado_atrasado` continuam como estão.
-- Criação de cliente com sócio (`criar-cliente-socio`).
+## Garantias
+- Nenhum `UPDATE`/`DELETE` em dados existentes de clientes, histórico ou movimentos durante o deploy.
+- Migração só cria função nova + GRANT.
+- Registros antigos com `mes_referencia_revisao` preenchido continuam funcionando; a padronização vale só para novas confirmações.

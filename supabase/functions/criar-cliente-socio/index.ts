@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { nowISOSaoPaulo } from '../_shared/date-sp.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -69,7 +70,7 @@ Deno.serve(async (req) => {
     const valorParcelaParceiro = Math.round((valorParceiro / totalParcelasNum) * 100) / 100
 
     // Create client for current user
-    const sharedCreatedAt = new Date().toISOString()
+    const sharedCreatedAt = nowISOSaoPaulo()
     const { data: clienteUser, error: errUser } = await supabaseAdmin
       .from('clientes_parcelados')
       .insert({

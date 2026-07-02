@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { currentMonthSaoPaulo } from '../_shared/date-sp.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -168,8 +169,7 @@ Deno.serve(async (req) => {
       }
 
     } else if (action === 'marcado_atrasado') {
-      const hoje = new Date()
-      const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
+      const mesAtual = currentMonthSaoPaulo()
       const { error } = await supabaseAdmin
         .from('clientes_parcelados')
         .update({

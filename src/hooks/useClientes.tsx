@@ -130,151 +130,28 @@ export function useClientes() {
 
   const registrarPagamento = useMutation({
     mutationFn: async ({ clienteId, incremento, observacao }: { clienteId: string; incremento: number; observacao?: string }) => {
-      const parseDateOnlyISO = (dateStr: string) => {
-        const [ano, mes, dia] = dateStr.split('-').map(Number);
-        return new Date(ano, mes - 1, dia);
-      };
-
-      const formatDateOnlyISO = (date: Date) => {
-        const ano = date.getFullYear();
-        const mes = String(date.getMonth() + 1).padStart(2, '0');
-        const dia = String(date.getDate()).padStart(2, '0');
-        return `${ano}-${mes}-${dia}`;
-      };
-
-      const subMonthsClampedISO = (dateStr: string, months: number) => {
-        const base = parseDateOnlyISO(dateStr);
-        const alvo = new Date(base.getFullYear(), base.getMonth() - months, 1);
-        const ultimoDia = new Date(alvo.getFullYear(), alvo.getMonth() + 1, 0).getDate();
-        const dia = Math.min(base.getDate(), ultimoDia);
-        return formatDateOnlyISO(new Date(alvo.getFullYear(), alvo.getMonth(), dia));
-      };
-
-      const isSameMonthYear = (a: Date, b: Date) => a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
-
-      // Get current client data
-      const { data: cliente, error: fetchError } = await supabase
-        .from('clientes_parcelados')
-        .select('*')
-        .eq('id', clienteId)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      const parcelasAntes = cliente.parcelas_pagas;
-      const novasParcelas = Math.max(0, Math.min(cliente.total_parcelas, cliente.parcelas_pagas + incremento));
-
-      // Calcular nova data_ultimo_pagamento
-      let novaDataUltimoPagamento: string | null = cliente.data_ultimo_pagamento;
-
-      // Flags de atualização para revisão
-      let limparRevisao = false;
-
-      if (incremento > 0) {
-        // +1 parcela: define data como hoje (data local)
-        novaDataUltimoPagamento = formatDateOnlyISO(new Date());
-        // Ao pagar, sair do estado de revisão
-        limparRevisao = true;
-      } else if (incremento < 0 && cliente.parcelas_pagas > 0) {
-        // -1 parcela: apagar APENAS a linha específica do histórico correspondente
-        // à parcela desfeita (maior numero_parcela deste cliente).
-        const { data: linhasParcela } = await supabase
-          .from('historico_pagamentos')
-          .select('id, data_pagamento')
-          .eq('cliente_id', clienteId)
-          .eq('numero_parcela', cliente.parcelas_pagas)
-          .order('data_pagamento', { ascending: false })
-          .limit(1);
-
-        if (linhasParcela && linhasParcela.length > 0) {
-          const { error: delErr } = await supabase
-            .from('historico_pagamentos')
-            .delete()
-            .eq('id', linhasParcela[0].id);
-          if (delErr) throw delErr;
-        }
-
-        // Recalcular data_ultimo_pagamento a partir do histórico remanescente
-        if (novasParcelas === 0) {
-          novaDataUltimoPagamento = null;
-        } else {
-          const { data: remanescente } = await supabase
-            .from('historico_pagamentos')
-            .select('data_pagamento')
-            .eq('cliente_id', clienteId)
-            .order('numero_parcela', { ascending: false })
-            .limit(1);
-
-          if (remanescente && remanescente.length > 0 && remanescente[0].data_pagamento) {
-            const d = new Date(remanescente[0].data_pagamento as string);
-            novaDataUltimoPagamento = formatDateOnlyISO(d);
-          } else {
-            novaDataUltimoPagamento = null;
-          }
-        }
-      }
-
-      // Preparar dados de update
-      const updateData: Record<string, unknown> = {
-        parcelas_pagas: novasParcelas,
-        data_ultimo_pagamento: novaDataUltimoPagamento,
-      };
-
-      if (limparRevisao) {
-        updateData.em_revisao = false;
-        updateData.mes_referencia_revisao = null;
-        updateData.valor_pago_parcial = null;
-        updateData.observacao_revisao = null;
-      }
-
-      // Update client (retorna o registro atualizado para atualizar o cache)
-      const { data: clienteAtualizado, error: updateError } = await supabase
-        .from('clientes_parcelados')
-        .update(updateData)
-        .eq('id', clienteId)
-        .select('*')
-        .single();
-
-      if (updateError) throw updateError;
-
-      // Registrar movimento
-      const tipoMovimento = incremento > 0 ? 'INCREMENTO' : 'DECREMENTO';
-      await registrarMovimento.mutateAsync({
-        cliente_id: clienteId,
-        tipo: tipoMovimento,
-        delta_parcelas: incremento,
-        parcelas_antes: parcelasAntes,
-        parcelas_depois: novasParcelas,
-        observacao: observacao || null,
-        registrado_por: user?.email || null,
+      // Chamada atômica: valida ownership, incrementa/decrementa, grava movimento e histórico numa única transação.
+      const { data: clienteAtualizado, error: rpcError } = await supabase.rpc('registrar_pagamento_atomico', {
+        p_cliente_id: clienteId,
+        p_incremento: incremento,
+        p_observacao: observacao ?? null,
+        p_registrado_por: user?.email ?? null,
       });
 
-      // Add to payment history if incrementing
-      if (incremento > 0) {
-        const valorParcela = cliente.valor_parcela != null
-          ? Number(cliente.valor_parcela)
-          : cliente.valor_total / cliente.total_parcelas;
-        const { error: histError } = await supabase
-          .from('historico_pagamentos')
-          .insert({
-            cliente_id: clienteId,
-            valor_pago: valorParcela,
-            numero_parcela: novasParcelas,
-            registrado_por: user?.email,
-          });
+      if (rpcError) throw rpcError;
+      if (!clienteAtualizado) throw new Error('Cliente não encontrado');
 
-        if (histError) throw histError;
-      }
+      const clienteTyped = clienteAtualizado as unknown as Cliente;
 
       // Sync to partner (fire-and-forget)
       sincronizarParceiro(clienteId, incremento > 0 ? 'pagamento_confirmado' : 'pagamento_removido', {
-        parcelas_pagas: novasParcelas,
-        data_ultimo_pagamento: novaDataUltimoPagamento,
+        parcelas_pagas: clienteTyped.parcelas_pagas,
+        data_ultimo_pagamento: clienteTyped.data_ultimo_pagamento,
       });
 
       return {
-        novasParcelas,
-        clienteAtualizado: calcularDadosCliente(clienteAtualizado as Cliente),
+        novasParcelas: clienteTyped.parcelas_pagas,
+        clienteAtualizado: calcularDadosCliente(clienteTyped),
       };
     },
     onSuccess: (result, { incremento }) => {
@@ -315,7 +192,6 @@ export function useClientes() {
       const novasParcelas = Math.min(cliente.total_parcelas, cliente.parcelas_pagas + 1);
       const now = new Date();
       const novaDataUltimoPagamento = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      const mesAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       
       const { data: clienteAtualizado, error: updateError } = await supabase
         .from('clientes_parcelados')
@@ -323,7 +199,7 @@ export function useClientes() {
           parcelas_pagas: novasParcelas,
           data_ultimo_pagamento: novaDataUltimoPagamento,
           em_revisao: false,
-          mes_referencia_revisao: mesAtual,
+          mes_referencia_revisao: null,
           valor_pago_parcial: null,
           observacao_revisao: null,
         })
@@ -375,7 +251,6 @@ export function useClientes() {
 
       // Optimistically remove from review immediately
       const now = new Date();
-      const mesAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       queryClient.setQueryData<ClienteCalculado[]>(['clientes'], (old) => {
         if (!old) return old;
         return old.map((c) => {
@@ -385,7 +260,7 @@ export function useClientes() {
             parcelas_pagas: Math.min(c.total_parcelas, c.parcelas_pagas + 1),
             data_ultimo_pagamento: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
             em_revisao: false,
-            mes_referencia_revisao: mesAtual,
+            mes_referencia_revisao: null,
             valor_pago_parcial: null,
             observacao_revisao: null,
           });
