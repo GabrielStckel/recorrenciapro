@@ -149,19 +149,41 @@ export function useClientes() {
         // Ao pagar, sair do estado de revisão
         limparRevisao = true;
       } else if (incremento < 0 && cliente.parcelas_pagas > 0) {
-        // -1 parcela: só desfaz confirmação se o último pagamento estiver no mês atual
-        if (cliente.data_ultimo_pagamento) {
-          const hoje = new Date();
-          const ultimoPagamento = parseDateOnlyISO(cliente.data_ultimo_pagamento);
+        // -1 parcela: apagar APENAS a linha específica do histórico correspondente
+        // à parcela desfeita (maior numero_parcela deste cliente).
+        const { data: linhasParcela } = await supabase
+          .from('historico_pagamentos')
+          .select('id, data_pagamento')
+          .eq('cliente_id', clienteId)
+          .eq('numero_parcela', cliente.parcelas_pagas)
+          .order('data_pagamento', { ascending: false })
+          .limit(1);
 
-          if (isSameMonthYear(ultimoPagamento, hoje)) {
-            novaDataUltimoPagamento = subMonthsClampedISO(cliente.data_ultimo_pagamento, 1);
-          }
+        if (linhasParcela && linhasParcela.length > 0) {
+          const { error: delErr } = await supabase
+            .from('historico_pagamentos')
+            .delete()
+            .eq('id', linhasParcela[0].id);
+          if (delErr) throw delErr;
         }
 
-        // Se novasParcelas volta a 0, limpar a data
+        // Recalcular data_ultimo_pagamento a partir do histórico remanescente
         if (novasParcelas === 0) {
           novaDataUltimoPagamento = null;
+        } else {
+          const { data: remanescente } = await supabase
+            .from('historico_pagamentos')
+            .select('data_pagamento')
+            .eq('cliente_id', clienteId)
+            .order('numero_parcela', { ascending: false })
+            .limit(1);
+
+          if (remanescente && remanescente.length > 0 && remanescente[0].data_pagamento) {
+            const d = new Date(remanescente[0].data_pagamento as string);
+            novaDataUltimoPagamento = formatDateOnlyISO(d);
+          } else {
+            novaDataUltimoPagamento = null;
+          }
         }
       }
 

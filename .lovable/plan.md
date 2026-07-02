@@ -1,104 +1,46 @@
-
-# Correção do arredondamento de `valor_total` ao editar cliente
-
-## Causa raiz
-Hoje `valor_parcela` não existe no banco. O `ClienteModal` deriva parcela = `valor_total / total_parcelas`, arredonda para centavos ao exibir e, no submit, recalcula `valor_total = parcela * total_parcelas`. Em casos como R$1000 / 3 → 333,33 → 999,99. Ou seja, apenas abrir + salvar um cliente já corrompe o valor.
-
 ## Objetivo
-1. `valor_parcela` passa a ser a fonte da verdade (persistida).
-2. `valor_total` é derivado (`valor_parcela * total_parcelas`) — mantido no banco por compatibilidade e para consultas existentes, mas nunca sobrescrito quando o usuário não tocou no valor.
-3. **Nada** dos dados atuais é apagado ou reescrito destrutivamente. Backfill é aditivo e idempotente.
+Corrigir o bug onde desfazer um pagamento (incremento negativo) deixa o registro em `historico_pagamentos` intacto — inflando faturamento e histórico — tanto localmente quanto no espelho do sócio. Também corrigir a `data_ultimo_pagamento` para refletir a data real do pagamento remanescente, não uma subtração de 1 mês.
 
----
+Nenhum dado de cliente é apagado. A única remoção permitida é a linha específica de `historico_pagamentos` correspondente à parcela desfeita.
 
-## 1. Migração aditiva (nova, sem tocar dados existentes)
+## Arquivos afetados
 
-Arquivo: nova migração Supabase.
+### 1. `src/hooks/useClientes.tsx` — `registrarPagamento` (linhas ~104-230)
 
-```sql
-ALTER TABLE public.clientes_parcelados
-  ADD COLUMN IF NOT EXISTS valor_parcela NUMERIC;
+**Mudança A — apagar a linha de histórico da parcela desfeita (incremento < 0):**
+- Antes do `update` do cliente, quando `incremento < 0 && cliente.parcelas_pagas > 0`:
+  - Buscar em `historico_pagamentos` a linha com `cliente_id = clienteId` e `numero_parcela = cliente.parcelas_pagas` (o maior número, correspondente à parcela mais recente).
+  - Se houver mais de uma (defensivo), pegar a mais recente por `data_pagamento`/`created_at` e apagar apenas essa `id`.
+  - `DELETE FROM historico_pagamentos WHERE id = <id>` — remoção pontual, não em massa.
+  - Se não existir linha, seguir sem erro (idempotente).
 
--- Backfill APENAS onde ainda está NULL. Não sobrescreve nada existente,
--- não altera valor_total, não toca historico_pagamentos nem movimentos_parcelas.
-UPDATE public.clientes_parcelados
-SET valor_parcela = ROUND(valor_total::numeric / NULLIF(total_parcelas, 0), 2)
-WHERE valor_parcela IS NULL;
-```
+**Mudança B — recalcular `data_ultimo_pagamento` a partir do histórico real:**
+- Substituir o bloco atual (que usa `subMonthsClampedISO` no cliente atual) por: após deletar a linha acima, buscar em `historico_pagamentos` a linha remanescente com maior `numero_parcela` para aquele cliente.
+  - Se existir → `novaDataUltimoPagamento = data_pagamento` (formatada como `YYYY-MM-DD` local).
+  - Se não existir (ou `novasParcelas === 0`) → `novaDataUltimoPagamento = null`.
+- Remover o helper `subMonthsClampedISO` do fluxo de decremento (pode ficar no arquivo se usado em outro lugar; verificar e limpar se órfão).
 
-Sem `NOT NULL` na coluna (evita risco em qualquer linha órfã). Sem trigger, sem DROP, sem DELETE.
+**Mudança C — propagar a data correta ao sócio:**
+- A chamada `sincronizarParceiro(..., 'pagamento_removido', { parcelas_pagas, data_ultimo_pagamento: novaDataUltimoPagamento })` já existe; apenas passará o valor recalculado corretamente.
 
-Nenhuma alteração em `historico_pagamentos` nem `movimentos_parcelas` — os registros de pagamento continuam intactos.
+### 2. `supabase/functions/sincronizar-pagamento/index.ts` — action `pagamento_removido` (linhas ~120-149)
 
-## 2. Tipos e cálculo — `src/types/cliente.ts`
+**Mudança D — apagar a linha correspondente no espelho do sócio:**
+- Antes do `update`, dentro do bloco `pagamento_removido`:
+  - Ler `parceiroAntes.parcelas_pagas` (já lido).
+  - Se `body.parcelas_pagas < parceiroAntes.parcelas_pagas` (decremento):
+    - Buscar em `historico_pagamentos` a linha com `cliente_id = parceiroClienteId` e `numero_parcela = parceiroAntes.parcelas_pagas` (mais recente por `data_pagamento` se houver múltiplas).
+    - Apagar apenas essa `id`. Idempotente se não existir.
+- Manter o `update` de `parcelas_pagas` e `data_ultimo_pagamento` como está (a data já virá recalculada do cliente principal via body).
+- Manter o insert em `movimentos_parcelas` como está.
 
-- `Cliente`: adicionar `valor_parcela: number | null`.
-- `calcularDadosCliente`: usar `cliente.valor_parcela ?? (valor_total / total_parcelas)` como fonte da parcela.
-- Derivar `valor_total_exibicao = valor_parcela * total_parcelas` para todos os cálculos internos (valor pago, a receber, previsão). O campo `cliente.valor_total` bruto do banco fica apenas como fallback histórico.
+## Detalhes técnicos
 
-## 3. `ClienteModal.tsx`
+- Ordem no cliente principal: (1) buscar cliente, (2) se decremento, apagar linha de histórico da maior `numero_parcela`, (3) recalcular `novaDataUltimoPagamento` a partir do histórico remanescente, (4) update do cliente, (5) registrar movimento DECREMENTO, (6) `sincronizarParceiro`.
+- Nada de `DELETE` sem `id` específico; nada tocando `clientes_parcelados`, `movimentos_parcelas` ou linhas de outros números de parcela.
+- Sem migração — apenas código.
+- Comportamento de incremento (`> 0`) permanece inalterado.
 
-- No modo **edição**, `formData.valor_parcela` é preenchido a partir de `cliente.valor_parcela` (sem divisão). Fallback: divide `valor_total / total_parcelas` só se `valor_parcela` for null.
-- Guardar `valorParcelaOriginalCents` ao abrir.
-- No `handleSubmit`:
-  - Se `cliente` existe e o campo valor não foi modificado (comparar em centavos com o original) **e** `total_parcelas` não mudou → enviar apenas os demais campos, **não** enviar `valor_parcela` nem `valor_total` no update.
-  - Se o usuário editou o valor ou as parcelas → enviar `valor_parcela` (novo) e `valor_total = valor_parcela * total_parcelas` (derivado, para manter coluna sincronizada).
-- Criação de novo cliente: enviar `valor_parcela` + `valor_total` derivado.
-
-## 4. `src/hooks/useClientes.tsx`
-
-- `addCliente`: incluir `valor_parcela` no insert.
-- `updateCliente`: aceitar `valor_parcela` opcional; só inclui no `.update({...})` se veio no payload (permite edição "sem tocar no valor" não gravar nada relacionado a dinheiro).
-- Optimistic updates: propagar `valor_parcela` no cache.
-
-## 5. Consumidores que hoje dividem `valor_total / total_parcelas`
-
-Trocar por `cliente.valor_parcela ?? valor_total/total_parcelas` (mesmo pattern do `calcularDadosCliente`). Arquivos a auditar/ajustar:
-
-- `src/components/ForecastChart.tsx`
-- `src/components/ExportarPrevisaoDialog.tsx`
-- `src/components/ClientesAtrasados.tsx`
-- `src/components/PagamentosEmRevisao.tsx`
-- `src/components/ClientesTable.tsx`
-- `src/components/MinhaEvolucao.tsx`
-- `src/components/HistoricoModal.tsx`
-- `src/pages/Dashboard.tsx`
-- `src/pages/Historico.tsx`
-- `src/pages/Clientes.tsx`
-
-(Em muitos casos já leem `ClienteCalculado.valor_parcela` — só preciso garantir que o `calcularDadosCliente` novo forneça a partir do banco.)
-
-## 6. Edge functions que criam/copiam clientes para o sócio
-
-Precisam gravar `valor_parcela` no INSERT do cliente parceiro (calculado a partir do valor proporcional). Não alteram registros existentes.
-
-- `supabase/functions/criar-cliente-socio/index.ts`
-- `supabase/functions/vincular-cliente-existente/index.ts`
-- `supabase/functions/copiar-clientes/index.ts`
-- `supabase/functions/sincronizar-clientes-parceiro/index.ts` — **NÃO** sincronizar `valor_parcela` nem `valor_total` (cada conta mantém o seu, igual à regra atual).
-
-## 7. `historico_pagamentos` (sem migração)
-
-Continua com `valor_pago` já registrado — não mexer em nada gravado. Novos pagamentos passam a usar `cliente.valor_parcela` (via `calcularDadosCliente`) ao invés de dividir `valor_total`. Ajuste apenas no ponto onde `useClientes` calcula o valor da parcela no momento de gravar novo pagamento.
-
-## 8. Types gerados
-
-`src/integrations/supabase/types.ts` é regenerado automaticamente após aprovar a migração — nenhum edit manual.
-
----
-
-## Garantias de preservação de dados
-- Migração só faz `ADD COLUMN` + `UPDATE ... WHERE valor_parcela IS NULL`.
-- Nenhum `DELETE`, `TRUNCATE`, `DROP` em `clientes_parcelados`, `historico_pagamentos` ou `movimentos_parcelas`.
-- `valor_total` das linhas existentes fica intocado.
-- Edição sem alterar o campo de valor não envia `valor_parcela`/`valor_total` no update, então o banco permanece idêntico.
-
-## Arquivos afetados (resumo)
-- Nova migração SQL (add column + backfill condicional)
-- `src/types/cliente.ts`
-- `src/components/ClienteModal.tsx`
-- `src/hooks/useClientes.tsx`
-- `supabase/functions/criar-cliente-socio/index.ts`
-- `supabase/functions/vincular-cliente-existente/index.ts`
-- `supabase/functions/copiar-clientes/index.ts`
-- Auditoria/ajustes menores nos componentes que dividem `valor_total / total_parcelas` (listados no item 5)
+## Fora de escopo
+- `registrarPagamentoParcial` e demais fluxos.
+- Qualquer alteração em `movimentos_parcelas` histórico já existente.
