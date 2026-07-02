@@ -104,7 +104,9 @@ Deno.serve(async (req) => {
 
           // Histórico de pagamento espelhado quando incrementa
           if (delta > 0) {
-            const valorParcela = parceiroAntes.valor_total / parceiroAntes.total_parcelas
+            const valorParcela = parceiroAntes.valor_parcela != null
+              ? Number(parceiroAntes.valor_parcela)
+              : parceiroAntes.valor_total / parceiroAntes.total_parcelas
             await supabaseAdmin.from('historico_pagamentos').insert({
               cliente_id: parceiroClienteId,
               valor_pago: valorParcela,
