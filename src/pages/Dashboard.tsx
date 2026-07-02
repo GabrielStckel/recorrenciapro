@@ -107,16 +107,9 @@ export default function Dashboard() {
       // (ou seja, dia seguinte em diante). No próprio dia do vencimento ainda não está atrasado.
       const vencimentoMesAtualPassou = hojeMidnight.getTime() > cliente.data_vencimento_mes_atual.getTime();
 
-      // AUTO-EXIT: cliente está em_revisao mas matematicamente está em dia
-      if (cliente.em_revisao) {
-        const naoEstaRealmenteAtrasado = cliente.parcelas_atrasadas === 0;
-        const naoPrecisaRevisao = !vencimentoMesAtualPassou || pagouNesteMes;
-        if (naoEstaRealmenteAtrasado && naoPrecisaRevisao && !clientesLimposRef.current.has(cliente.id)) {
-          clientesLimposRef.current.add(cliente.id);
-          sairDeRevisaoMutate.current({ clienteId: cliente.id });
-        }
-        return;
-      }
+      // Uma vez em_revisao, só sai pelos botões "Pagou" / "Não pagou" — sem auto-saída.
+      if (cliente.em_revisao) return;
+
 
       // AUTO-ENTER review:
       if (cliente.mes_referencia_revisao === mesAtual) return;
