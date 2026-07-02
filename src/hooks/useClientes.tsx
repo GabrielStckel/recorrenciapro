@@ -296,7 +296,9 @@ export function useClientes() {
       });
       
       // Add to payment history
-      const valorParcela = cliente.valor_total / cliente.total_parcelas;
+      const valorParcela = cliente.valor_parcela != null
+        ? Number(cliente.valor_parcela)
+        : cliente.valor_total / cliente.total_parcelas;
       const { error: histError } = await supabase
         .from('historico_pagamentos')
         .insert({
