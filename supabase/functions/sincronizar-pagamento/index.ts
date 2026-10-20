@@ -3,8 +3,10 @@ import { currentMonthSaoPaulo } from '../_shared/date-sp.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -34,18 +36,34 @@ Deno.serve(async (req) => {
     const body = await req.json()
     const { cliente_id, action } = body
 
-    if (!cliente_id || !action) {
-      return new Response(JSON.stringify({ error: 'cliente_id e action são obrigatórios' }), {
+    if (!cliente_id || !action || typeof cliente_id !== 'string' || !UUID_RE.test(cliente_id)) {
+      return new Response(JSON.stringify({ error: 'cliente_id (uuid) e action são obrigatórios' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    // Find linked partner client
-    const { data: links, error: linkError } = await supabaseAdmin
-      .from('clientes_vinculados')
-      .select('*')
-      .or(`cliente_id.eq.${cliente_id},cliente_parceiro_id.eq.${cliente_id}`)
+    // Segurança: este endpoint usa a service role, então só aceita sincronizar a partir de um
+    // cliente que pertence a quem está chamando. Sem isso, qualquer usuário logado conseguiria
+    // alterar clientes vinculados de outras contas só sabendo o id.
+    const { data: origem } = await supabaseAdmin
+      .from('clientes_parcelados')
+      .select('id, user_id')
+      .eq('id', cliente_id)
+      .maybeSingle()
 
+    if (!origem || origem.user_id !== user.id) {
+      return new Response(JSON.stringify({ synced: false, reason: 'Cliente não pertence a este usuário' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Vínculo em que este cliente participa, do lado de quem está chamando
+    const [comoDono, comoSocio] = await Promise.all([
+      supabaseAdmin.from('clientes_vinculados').select('*').eq('cliente_id', cliente_id).eq('user_id', user.id),
+      supabaseAdmin.from('clientes_vinculados').select('*').eq('cliente_parceiro_id', cliente_id).eq('parceiro_user_id', user.id),
+    ])
+
+    const linkError = comoDono.error || comoSocio.error
     if (linkError) {
       console.log('Error fetching links:', linkError.message)
       return new Response(JSON.stringify({ synced: false, reason: 'Erro ao buscar vínculo' }), {
@@ -53,7 +71,8 @@ Deno.serve(async (req) => {
       })
     }
 
-    if (!links || links.length === 0) {
+    const links = [...(comoDono.data || []), ...(comoSocio.data || [])]
+    if (links.length === 0) {
       return new Response(JSON.stringify({ synced: false, reason: 'Cliente não vinculado' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -256,12 +275,12 @@ Deno.serve(async (req) => {
         .eq('id', parceiroClienteId)
       updateError = delError
 
-      // Link will be cascade-deleted via FK if set, otherwise delete manually
+      // O vínculo cai em cascata pela FK; apaga explicitamente por garantia
       if (!updateError) {
         await supabaseAdmin
           .from('clientes_vinculados')
           .delete()
-          .or(`cliente_id.eq.${cliente_id},cliente_parceiro_id.eq.${cliente_id}`)
+          .eq('id', link.id)
       }
 
     } else if (action === 'entrou_revisao') {

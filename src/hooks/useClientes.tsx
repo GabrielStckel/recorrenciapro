@@ -3,7 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Cliente, HistoricoPagamento, ClienteCalculado, calcularDadosCliente } from '@/types/cliente';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
-import { useRegistrarMovimento } from './useMovimentos';
 
 // Fire-and-forget sync to partner account (non-blocking)
 async function sincronizarParceiro(clienteId: string, action: string, data: Record<string, unknown> = {}) {
@@ -20,7 +19,6 @@ export function useClientes() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const registrarMovimento = useRegistrarMovimento();
 
   const { data: clientes = [], isLoading, error } = useQuery({
     queryKey: ['clientes'],
@@ -109,8 +107,9 @@ export function useClientes() {
 
   const deleteCliente = useMutation({
     mutationFn: async (id: string) => {
-      // Sync deletion to partner first (fire-and-forget)
-      sincronizarParceiro(id, 'cliente_deletado');
+      // Sincroniza a exclusão com o sócio ANTES de apagar: depois do delete o vínculo
+      // some em cascata e a função não encontra mais o cliente do sócio.
+      await sincronizarParceiro(id, 'cliente_deletado');
 
       const { error } = await supabase
         .from('clientes_parcelados')
@@ -179,69 +178,27 @@ export function useClientes() {
   // Mutation to confirm payment from review
   const confirmarPagamentoRevisao = useMutation({
     mutationFn: async ({ clienteId, observacao }: { clienteId: string; observacao?: string }) => {
-      // Get current client data
-      const { data: cliente, error: fetchError } = await supabase
-        .from('clientes_parcelados')
-        .select('*')
-        .eq('id', clienteId)
-        .single();
-      
-      if (fetchError) throw fetchError;
-      
-      const parcelasAntes = cliente.parcelas_pagas;
-      const novasParcelas = Math.min(cliente.total_parcelas, cliente.parcelas_pagas + 1);
-      const now = new Date();
-      const novaDataUltimoPagamento = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      
-      const { data: clienteAtualizado, error: updateError } = await supabase
-        .from('clientes_parcelados')
-        .update({
-          parcelas_pagas: novasParcelas,
-          data_ultimo_pagamento: novaDataUltimoPagamento,
-          em_revisao: false,
-          mes_referencia_revisao: null,
-          valor_pago_parcial: null,
-          observacao_revisao: null,
-        })
-        .eq('id', clienteId)
-        .select('*')
-        .single();
-      
-      if (updateError) throw updateError;
-      
-      // Registrar movimento
-      await registrarMovimento.mutateAsync({
-        cliente_id: clienteId,
-        tipo: 'INCREMENTO',
-        delta_parcelas: 1,
-        parcelas_antes: parcelasAntes,
-        parcelas_depois: novasParcelas,
-        observacao: observacao || 'Pagamento confirmado via revisão',
-        registrado_por: user?.email || null,
+      // Mesma função atômica do botão +1: incrementa, limpa a revisão, grava movimento e
+      // histórico numa única transação (antes eram 3 gravações separadas que podiam ficar pela metade).
+      const { data, error } = await supabase.rpc('registrar_pagamento_atomico', {
+        p_cliente_id: clienteId,
+        p_incremento: 1,
+        p_observacao: observacao || 'Pagamento confirmado via revisão',
+        p_registrado_por: user?.email ?? null,
       });
-      
-      // Add to payment history
-      const valorParcela = cliente.valor_parcela != null
-        ? Number(cliente.valor_parcela)
-        : cliente.valor_total / cliente.total_parcelas;
-      const { error: histError } = await supabase
-        .from('historico_pagamentos')
-        .insert({
-          cliente_id: clienteId,
-          valor_pago: valorParcela,
-          numero_parcela: novasParcelas,
-          registrado_por: user?.email,
-        });
-      
-      if (histError) throw histError;
+
+      if (error) throw error;
+      if (!data) throw new Error('Cliente não encontrado');
+
+      const clienteAtualizado = data as unknown as Cliente;
 
       // Sync to partner (fire-and-forget)
       sincronizarParceiro(clienteId, 'pagamento_confirmado', {
-        parcelas_pagas: novasParcelas,
-        data_ultimo_pagamento: novaDataUltimoPagamento,
+        parcelas_pagas: clienteAtualizado.parcelas_pagas,
+        data_ultimo_pagamento: clienteAtualizado.data_ultimo_pagamento,
       });
-      
-      return { novasParcelas, clienteAtualizado: calcularDadosCliente(clienteAtualizado as Cliente) };
+
+      return { novasParcelas: clienteAtualizado.parcelas_pagas, clienteAtualizado: calcularDadosCliente(clienteAtualizado) };
     },
     onMutate: async ({ clienteId }) => {
       // Cancel any outgoing refetches to avoid overwriting optimistic update
@@ -277,8 +234,10 @@ export function useClientes() {
           return old.map((c) => (c.id === result.clienteAtualizado.id ? result.clienteAtualizado : c));
         });
       }
-      // Only invalidate historico, NOT clientes (we already have fresh data)
+      // Only invalidate historico/movimentos, NOT clientes (we already have fresh data)
       queryClient.invalidateQueries({ queryKey: ['historico'] });
+      queryClient.invalidateQueries({ queryKey: ['movimentos'] });
+      queryClient.invalidateQueries({ queryKey: ['all-movimentos'] });
       toast({ title: 'Pagamento confirmado!', description: 'Parcela marcada como paga.' });
     },
     onError: (error, _vars, context) => {
@@ -411,46 +370,8 @@ export function useClientes() {
     },
   });
 
-  // Auto-cleanup: sair silenciosamente do estado de revisão quando o cliente
-  // está matematicamente em dia (ex: usuário registrou pagamento retroativo)
-  const sairDeRevisao = useMutation({
-    mutationFn: async ({ clienteId }: { clienteId: string }) => {
-      const { error } = await supabase
-        .from('clientes_parcelados')
-        .update({
-          em_revisao: false,
-          mes_referencia_revisao: null,
-          valor_pago_parcial: null,
-          observacao_revisao: null,
-        })
-        .eq('id', clienteId);
-
-      if (error) throw error;
-
-      sincronizarParceiro(clienteId, 'cliente_editado', {
-        em_revisao: false,
-        mes_referencia_revisao: null,
-        valor_pago_parcial: null,
-        observacao_revisao: null,
-      });
-    },
-    onMutate: async ({ clienteId }) => {
-      queryClient.setQueryData<ClienteCalculado[]>(['clientes'], (old) => {
-        if (!old) return old;
-        return old.map((c) =>
-          c.id === clienteId
-            ? calcularDadosCliente({
-                ...(c as unknown as Cliente),
-                em_revisao: false,
-                mes_referencia_revisao: null,
-                valor_pago_parcial: null,
-                observacao_revisao: null,
-              })
-            : c
-        );
-      });
-    },
-  });
+  // Regra do sistema: um cliente só sai de "Em revisão" pelos botões "Pagou" / "Não pagou"
+  // (ou por um +1). Não existe saída automática — ver .lovable/plan.md.
 
   return {
     clientes,
@@ -463,7 +384,6 @@ export function useClientes() {
     confirmarPagamentoRevisao,
     marcarComoAtrasado,
     entrarEmRevisao,
-    sairDeRevisao,
     registrarPagamentoParcial,
   };
 }

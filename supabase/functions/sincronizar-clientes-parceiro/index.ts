@@ -127,7 +127,16 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Strategy 2: Match by client name (for copied but unlinked clients)
+    // Strategy 2: casar por nome os clientes copiados mas não vinculados.
+    // Só procura nas contas dos SÓCIOS com quem este usuário já tem vínculo — antes buscava
+    // em todas as contas do sistema, o que copiava dados de qualquer pessoa com cliente de mesmo nome.
+    const partnerIds = [...new Set((links || []).map((l: any) => l.user_id === user.id ? l.parceiro_user_id : l.user_id))]
+    if (partnerIds.length === 0) {
+      return new Response(JSON.stringify({ synced: syncCount }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     const { data: myClients } = await supabaseAdmin
       .from('clientes_parcelados')
       .select('*')
@@ -154,11 +163,11 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Get all clients from OTHER users with matching names
+    // Clientes dos sócios com o mesmo nome
     const { data: otherClients } = await supabaseAdmin
       .from('clientes_parcelados')
       .select('*')
-      .neq('user_id', user.id)
+      .in('user_id', partnerIds)
       .in('cliente_nome', myClientNames)
 
     if (!otherClients || otherClients.length === 0) {
@@ -167,17 +176,23 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Build a map: nome -> source client (from the other user)
-    const sourceByName = new Map<string, any>()
+    // nome+produto -> clientes do sócio. Se houver mais de um candidato, não sincroniza
+    // (ex.: a mesma pessoa comprou dois produtos) para não sobrescrever o cliente errado.
+    const chave = (c: any) => `${c.cliente_nome}::${c.produto}`
+    const sourcesByKey = new Map<string, any[]>()
     for (const c of otherClients) {
-      sourceByName.set(c.cliente_nome, c)
+      const k = chave(c)
+      sourcesByKey.set(k, [...(sourcesByKey.get(k) || []), c])
     }
+    const myCountByKey = new Map<string, number>()
+    for (const c of myClients) myCountByKey.set(chave(c), (myCountByKey.get(chave(c)) || 0) + 1)
 
-    // Update my unlinked clients that have a match
+    // Update my unlinked clients that have a single, unambiguous match
     for (const myClient of myClients) {
       if (linkedMyIds.has(myClient.id)) continue
-      const source = sourceByName.get(myClient.cliente_nome)
-      if (!source) continue
+      const candidatos = sourcesByKey.get(chave(myClient)) || []
+      if (candidatos.length !== 1 || myCountByKey.get(chave(myClient)) !== 1) continue
+      const source = candidatos[0]
 
       // Only sync if source has better data
       if (!shouldSync(source, myClient)) continue
