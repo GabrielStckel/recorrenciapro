@@ -139,8 +139,14 @@ export function ClienteModal({ open, onClose, cliente, prefilledCobranca }: Clie
       const pVT = prefilledCobranca?.valor_total;
       const pTP = prefilledCobranca?.total_parcelas;
       const pDV = prefilledCobranca?.dia_vencimento;
-      // If prefilled has valor_total, convert to valor_parcela
-      const valorParcela = (pVT && pTP && pTP > 0) ? pVT / pTP : pVT;
+      // Na cobrança futura o "Valor Total Recorrência" é o contrato inteiro (100%).
+      // Aqui o campo "Valor da Parcela" é a SUA parte; com sócio, aplica o seu percentual
+      // (antes o valor cheio entrava como seu e a parte do sócio era somada por cima).
+      const pctUserPrefill = prefilledCobranca?.com_socio && prefilledCobranca?.percentual_user
+        ? prefilledCobranca.percentual_user / 100
+        : 1;
+      const valorTotalSeu = pVT ? pVT * pctUserPrefill : pVT;
+      const valorParcela = (valorTotalSeu && pTP && pTP > 0) ? valorTotalSeu / pTP : valorTotalSeu;
       setFormData({
         cliente_nome: prefilledCobranca?.cliente_nome || '',
         whatsapp: prefilledCobranca?.whatsapp || '',
