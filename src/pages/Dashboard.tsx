@@ -110,6 +110,9 @@ export default function Dashboard() {
       // Uma vez em_revisao, só sai pelos botões "Pagou" / "Não pagou" — sem auto-saída.
       if (cliente.em_revisao) return;
 
+      // Já pagou todas as parcelas vencidas (ex.: adiantou a do mês): nada a revisar.
+      if (cliente.parcelas_pagas >= cliente.parcelas_devidas) return;
+
 
       // AUTO-ENTER review:
       if (cliente.mes_referencia_revisao === mesAtual) return;
@@ -165,6 +168,9 @@ export default function Dashboard() {
       .filter((c) => {
         // Somente ATIVOS com parcelas pendentes
         if (c.status_cliente !== 'ATIVO' || c.parcelas_pendentes <= 0) return false;
+
+        // Já pagou o que vence até o fim do mês (adiantado) ou só começa a pagar no mês que vem
+        if (c.coberto_mes_atual) return false;
 
         // Verificar se já pagou neste mês
         if (c.data_ultimo_pagamento) {

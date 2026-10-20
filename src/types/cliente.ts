@@ -45,6 +45,10 @@ export interface ClienteCalculado extends Cliente {
   primeira_data_vencimento: Date | null;
   data_vencimento_mes_atual: Date;
   em_revisao_efetivo: boolean;
+  /** Parcelas que já venceram até hoje (calendário). */
+  parcelas_devidas: number;
+  /** Já pagou tudo o que vence até o fim do mês atual (inclui quem pagou adiantado). */
+  coberto_mes_atual: boolean;
 }
 
 // Função auxiliar para obter o último dia do mês
@@ -99,6 +103,8 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
   let parcelas_atrasadas = 0;
   let primeira_data_vencimento: Date | null = null;
   let em_revisao_efetivo = false;
+  let parcelas_devidas = 0;
+  let coberto_mes_atual = true;
 
   // Só calcula status de pagamento para clientes ATIVOS com parcelas pendentes
   if (parcelas_pendentes > 0 && cliente.status_cliente === 'ATIVO') {
@@ -133,6 +139,18 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
     );
 
     const estaAtrasado = cliente.parcelas_pagas < parcelasQueDeveriamEstarPagas;
+    parcelas_devidas = parcelasQueDeveriamEstarPagas;
+
+    // Parcelas que vencem até o fim do mês atual (vencida ou não). Se as pagas cobrem isso,
+    // o cliente não deve nada neste mês — ex.: pagou a parcela de outubro adiantada em setembro.
+    const devidasAteFimDoMes = dataVencimentoMesAtual.getTime() >= primeiraDataVencimentoCalc.getTime()
+      ? Math.min(
+          cliente.total_parcelas,
+          (dataVencimentoMesAtual.getFullYear() * 12 + dataVencimentoMesAtual.getMonth()) -
+            (primeiraDataVencimentoCalc.getFullYear() * 12 + primeiraDataVencimentoCalc.getMonth()) + 1
+        )
+      : 0;
+    coberto_mes_atual = cliente.parcelas_pagas >= devidasAteFimDoMes;
 
     // Verifica se foi marcado como "não pagou" neste mês (mes_referencia_revisao = mês atual e em_revisao = false)
     const mesAtualStr = `${anoAtual}-${String(mesAtual + 1).padStart(2, '0')}`;
@@ -164,7 +182,9 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
       !pagouEsteMes &&
       !foiMarcadoNaoPagouEsteMes;
 
-    em_revisao_efetivo = cliente.em_revisao || deveEstarEmRevisaoComputado;
+    // Quem já tem todas as parcelas vencidas pagas (inclusive adiantado) não tem o que revisar,
+    // mesmo sem pagamento registrado neste mês.
+    em_revisao_efetivo = estaAtrasado && (cliente.em_revisao || deveEstarEmRevisaoComputado);
 
     // Calcular parcelas atrasadas e dias em atraso (métricas internas)
     if (deveSerAtrasado) {
@@ -211,6 +231,8 @@ export function calcularDadosCliente(cliente: Cliente): ClienteCalculado {
     primeira_data_vencimento: primeira_data_vencimento,
     data_vencimento_mes_atual: dataVencimentoMesAtual,
     em_revisao_efetivo,
+    parcelas_devidas,
+    coberto_mes_atual,
   };
 }
 
