@@ -118,6 +118,25 @@ export default function ComoUsar() {
             </p>
           </CardContent>
         </Card>
+        <Card className="glass">
+          <CardHeader><CardTitle>Relatórios e Perguntar ao Claude</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
+            <p>
+              Em <strong className="text-foreground">Relatórios</strong> você busca clientes e vê quanto cada um deve em
+              <strong className="text-foreground"> valor cheio</strong> (o que o cliente paga), as taxas, o líquido e a divisão entre
+              você e o sócio. O botão <strong className="text-foreground">Baixar planilha</strong> gera um Excel com fórmulas.
+            </p>
+            <p>
+              O valor cheio é estimado a partir da sua parte cadastrada: produto "Asaas" (ou nome com "(Asaas") usa a taxa do Asaas
+              (R$ 2,98 por cobrança); o resto, a da Hotmart (8,9% + R$ 1). Se o seu percentual não for 30%, ajuste em "Sua parte (%)".
+            </p>
+            <p>
+              O botão <strong className="text-foreground">Perguntar ao Claude</strong>, no canto da tela, responde perguntas como
+              "quanto a Reysla deve?" ou "gera a planilha dos atrasados", e as tabelas que ele devolve também podem ser baixadas.
+              Ele só lê os dados: pagamentos e edições continuam sendo feitos nos botões de sempre.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );

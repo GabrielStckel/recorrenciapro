@@ -9,6 +9,7 @@ import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Clientes from "./pages/Clientes";
 import Historico from "./pages/Historico";
+import Relatorios from "./pages/Relatorios";
 import ComoUsar from "./pages/ComoUsar";
 import Perfil from "./pages/Perfil";
 import NotFound from "./pages/NotFound";
@@ -32,6 +33,7 @@ function AppRoutes() {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/clientes" element={<ProtectedRoute><Clientes /></ProtectedRoute>} />
+      <Route path="/relatorios" element={<ProtectedRoute><Relatorios /></ProtectedRoute>} />
       <Route path="/historico" element={<ProtectedRoute><Historico /></ProtectedRoute>} />
       <Route path="/como-usar" element={<ProtectedRoute><ComoUsar /></ProtectedRoute>} />
       <Route path="/perfil" element={<ProtectedRoute><Perfil /></ProtectedRoute>} />

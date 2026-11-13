@@ -4,12 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserSettings } from '@/hooks/useUserSettings';
-import { LayoutDashboard, Users, History, HelpCircle, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, History, HelpCircle, LogOut, FileSpreadsheet } from 'lucide-react';
+import { AssistenteClaude } from '@/components/AssistenteClaude';
 
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/clientes', label: 'Clientes', icon: Users },
+  { href: '/relatorios', label: 'Relatórios', icon: FileSpreadsheet },
   { href: '/historico', label: 'Histórico', icon: History },
   { href: '/como-usar', label: 'Como Usar', icon: HelpCircle },
 ];
@@ -78,6 +80,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <main className="container mx-auto px-4 py-6 flex-1">
         {children}
       </main>
+
+      <AssistenteClaude />
 
       {/* Footer */}
       <footer className="border-t border-border/50 bg-card/30">

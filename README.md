@@ -51,6 +51,9 @@ src/
   pages/Dashboard.tsx        KPIs, revisão, previsão, atrasados
   pages/Clientes.tsx         tabela, cadastro, cobranças futuras
   pages/Historico.tsx        log de +1/-1 (movimentos_parcelas)
+  pages/Relatorios.tsx       busca, valor cheio em atraso, divisão com o sócio e download em Excel
+  components/AssistenteClaude.tsx  chat "Perguntar ao Claude" (botão flutuante em todas as telas)
+  lib/relatorio.ts           conta inversa (sua parte → valor cheio), taxas e totais do relatório
   pages/ComoUsar.tsx         manual dentro do app
 supabase/
   migrations/                esquema (aplicado pelo Lovable)
@@ -85,6 +88,29 @@ supabase/
 | `sincronizar-pagamento` | Repete no sócio cada ação feita num cliente vinculado. Só aceita clientes do próprio usuário. |
 | `sincronizar-clientes-parceiro` | Roda ao abrir o Dashboard: alinha clientes vinculados e, por nome + produto, os copiados sem vínculo — só entre sócios já vinculados. |
 | `copiar-clientes` | Copia clientes para a conta do sócio com valores zerados. |
+
+### Assistente (Perguntar ao Claude)
+
+A edge function `assistente-claude` recebe a pergunta e a tabela de clientes já calculada pelo front-end e
+chama a API da Anthropic. Ela só lê: não grava nada no banco.
+
+Segredos no Lovable Cloud:
+
+| Segredo | Para quê |
+|---|---|
+| `ANTHROPIC_API_KEY` | Chave da API da Anthropic (console da Anthropic, cobrança à parte da assinatura do Claude). |
+| `ASSISTENTE_EMAILS` | E-mails que podem usar o assistente, separados por vírgula. Obrigatório: qualquer pessoa pode criar conta no app, e sem a lista qualquer conta gastaria os créditos da chave. |
+| `ANTHROPIC_MODEL` | Opcional. Padrão `claude-sonnet-5-5`. |
+
+## Relatórios: de onde vem o valor cheio
+
+`valor cheio da parcela` = conta inversa da sua parte, arredondada para o real (ou 10 centavos) mais próximo
+quando a diferença é pequena:
+
+- Hotmart: `(sua parte ÷ seu % + 1) ÷ (1 − 8,9%)`
+- Asaas: `sua parte ÷ seu % + 2,98`
+
+Parcelas em aberto = parcelas que já venceram e não foram pagas (inclui quem está em revisão).
 
 ## Conferir com a Hotmart
 
